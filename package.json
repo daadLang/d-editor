@@ -1,0 +1,49 @@
+{
+  "name": "daad-ide",
+  "version": "1.0.0",
+  "description": "Minimal IDE for ض (Ḍād) Arabic Programming Language",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "yarn build:renderer && electron .",
+    "dev": "yarn build:renderer && electron . --enable-logging",
+    "build:renderer": "vite build",
+    "build": "yarn build:renderer && electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "ide",
+    "arabic",
+    "daad"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.12.0",
+    "@codemirror/commands": "^6.3.3",
+    "@codemirror/gutter": "^0.19.9",
+    "@codemirror/lang-python": "^6.1.4",
+    "@codemirror/language": "^6.10.0",
+    "@codemirror/state": "^6.4.0",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.23.1",
+    "@lezer/highlight": "^1.2.0",
+    "@lezer/lr": "^1.4.0",
+    "codemirror": "^6.0.1",
+    "file-icons-js": "^1.1.0"
+  },
+  "build": {
+    "appId": "com.daad.ide",
+    "productName": "Ḍād IDE",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*"
+    ]
+  }
+}
