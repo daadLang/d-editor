@@ -13,6 +13,7 @@ let currentFolder = null;
 let editorView = null;
 let fileTree = {};
 let isModified = false;
+let daadOutputUnsub = null;
 
 function getFolderIcon(isExpanded) {
   if (isExpanded) {
@@ -321,14 +322,16 @@ async function runCurrentFile() {
   output.innerHTML = '<div class="terminal-line terminal-stdout">جاري التشغيل...</div>';
   
   try {
-    // Set up output listener
-    window.api.onDaadOutput((data) => {
-      const line = document.createElement('div');
-      line.className = `terminal-line terminal-${data.type}`;
-      line.textContent = data.data;
-      output.appendChild(line);
-      output.scrollTop = output.scrollHeight;
-    });
+    // Set up output listener once to avoid duplicated output
+    if (!daadOutputUnsub) {
+      daadOutputUnsub = window.api.onDaadOutput((data) => {
+        const line = document.createElement('div');
+        line.className = `terminal-line terminal-${data.type}`;
+        line.textContent = data.data;
+        output.appendChild(line);
+        output.scrollTop = output.scrollHeight;
+      });
+    }
     
     // Execute
     const result = await window.api.runDaad(currentFile);
@@ -355,6 +358,66 @@ document.getElementById('runBtn').addEventListener('click', runCurrentFile);
 document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
 document.getElementById('closeTerminalBtn').addEventListener('click', () => {
   document.getElementById('terminalPanel').classList.add('hidden');
+});
+
+// Terminal stdin controls
+const terminalInput = document.getElementById('terminalInput');
+const sendStdinBtn = document.getElementById('sendStdinBtn');
+const endStdinBtn = document.getElementById('endStdinBtn');
+
+async function sendStdin() {
+  const val = terminalInput.value;
+  if (!val) return;
+  const output = document.getElementById('terminalOutput');
+
+  // Show the input in the terminal output
+  const line = document.createElement('div');
+  line.className = 'terminal-line terminal-stdin';
+  line.textContent = val;
+  output.appendChild(line);
+  output.scrollTop = output.scrollHeight;
+
+  try {
+    // Send newline so programs reading lines receive it
+    const ok = await window.api.writeToDaadStdin(val + '\n');
+    // If there's no running process, silently ignore (do not show error)
+    if (!ok) {
+      // nothing to do
+    }
+  } catch (err) {
+    // If ipc call fails unexpectedly, log to console but don't show user-facing error
+    console.warn('writeToDaadStdin failed:', err);
+  }
+
+  terminalInput.value = '';
+}
+
+async function endStdin() {
+  const output = document.getElementById('terminalOutput');
+  try {
+    const ok = await window.api.endDaadStdin();
+    if (ok) {
+      const line = document.createElement('div');
+      line.className = 'terminal-line terminal-stdin';
+      line.textContent = '<EOF>';
+      output.appendChild(line);
+      output.scrollTop = output.scrollHeight;
+    }
+  } catch (err) {
+    console.warn('endDaadStdin failed:', err);
+  }
+}
+
+sendStdinBtn.addEventListener('click', sendStdin);
+if (endStdinBtn) {
+  endStdinBtn.addEventListener('click', endStdin);
+}
+
+terminalInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendStdin();
+  }
 });
 
 // Initialize

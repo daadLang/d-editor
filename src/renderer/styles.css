@@ -464,6 +464,39 @@ body {
   text-align: right;
 }
 
+.terminal-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-color);
+  align-items: center;
+}
+
+.terminal-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.btn-terminal {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-terminal:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .terminal-line {
   margin-bottom: 2px;
 }
@@ -476,6 +509,11 @@ body {
 
 .terminal-stderr {
   color: #ff5370;
+}
+
+.terminal-stdin {
+  color: var(--accent-success);
+  opacity: 0.95;
 }
 
 /* Scrollbar */

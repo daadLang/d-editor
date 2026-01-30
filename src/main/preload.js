@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld('api', {
   // Code execution
   runDaad: (filePath) => ipcRenderer.invoke('run-daad', filePath),
   onDaadOutput: (callback) => {
-    ipcRenderer.on('daad-output', (event, data) => callback(data));
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('daad-output', listener);
+    return () => ipcRenderer.removeListener('daad-output', listener);
   }
+  ,
+  // Stdin support for running process
+  writeToDaadStdin: (data) => ipcRenderer.invoke('write-daad-stdin', data),
+  endDaadStdin: () => ipcRenderer.invoke('end-daad-stdin')
 });

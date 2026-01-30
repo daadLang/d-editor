@@ -134,6 +134,9 @@ ipcMain.handle('open-folder-dialog', async () => {
   return null;
 });
 
+// Track running processes per renderer (by webContents id)
+const runningProcesses = new Map();
+
 // Execute daad command
 ipcMain.handle('run-daad', async (event, filePath) => {
   return new Promise((resolve, reject) => {
@@ -141,6 +144,9 @@ ipcMain.handle('run-daad', async (event, filePath) => {
       cwd: path.dirname(filePath),
       maxBuffer: 10 * 1024 * 1024 // 10MB buffer
     });
+
+    // Store process so renderer can write to stdin
+    runningProcesses.set(event.sender.id, process);
 
     let stdout = '';
     let stderr = '';
@@ -156,11 +162,44 @@ ipcMain.handle('run-daad', async (event, filePath) => {
     });
 
     process.on('close', (code) => {
+      // Remove process when finished
+      runningProcesses.delete(event.sender.id);
       resolve({ code, stdout, stderr });
     });
 
     process.on('error', (error) => {
+      runningProcesses.delete(event.sender.id);
       reject(new Error(`Failed to execute: ${error.message}`));
     });
   });
+});
+
+// Write to stdin of running daad process
+ipcMain.handle('write-daad-stdin', (event, data) => {
+  const proc = runningProcesses.get(event.sender.id);
+  if (!proc || !proc.stdin || proc.stdin.destroyed) {
+    // No running process: return false instead of throwing
+    return false;
+  }
+  try {
+    proc.stdin.write(data);
+    return true;
+  } catch (err) {
+    // If write fails, return false rather than throwing to avoid renderer errors
+    return false;
+  }
+});
+
+// Close stdin (send EOF)
+ipcMain.handle('end-daad-stdin', (event) => {
+  const proc = runningProcesses.get(event.sender.id);
+  if (!proc || !proc.stdin || proc.stdin.destroyed) {
+    return false;
+  }
+  try {
+    proc.stdin.end();
+    return true;
+  } catch (err) {
+    return false;
+  }
 });
