@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const { exec } = require('child_process');
 
+const isDev = !app.isPackaged;
+
+
 let mainWindow;
 
 function createWindow() {
@@ -20,7 +23,15 @@ function createWindow() {
   });
 
   // Load from dist/renderer (built by Vite)
-  mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
+  // mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
+  if (isDev) {
+  mainWindow.loadURL("http://localhost:5173");
+  mainWindow.webContents.openDevTools();
+} else {
+  mainWindow.loadFile(
+    path.join(__dirname, '../../dist/renderer/index.html')
+  );
+}
   
   // Open DevTools in development
   // mainWindow.webContents.openDevTools();

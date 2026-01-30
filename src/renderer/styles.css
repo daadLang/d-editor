@@ -460,8 +460,8 @@ body {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  direction: ltr;
-  text-align: left;
+  direction: rtl;
+  text-align: right;
 }
 
 .terminal-line {
@@ -470,6 +470,8 @@ body {
 
 .terminal-stdout {
   color: var(--text-primary);
+  direction: rtl;
+  text-align: right;
 }
 
 .terminal-stderr {
