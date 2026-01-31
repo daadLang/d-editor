@@ -1,5 +1,5 @@
 import { EditorView, keymap, highlightActiveLine, lineNumbers } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState, Compartment, EditorSelection } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language';
@@ -80,6 +80,60 @@ function initEditor() {
         ...defaultKeymap,
         ...completionKeymap,
         indentWithTab,
+        // Editor-specific commands
+        {
+          key: 'Ctrl-d',
+          run: () => {
+            selectNextOccurrence();
+            return true;
+          }
+        },
+        {
+          key: 'Mod-d',
+          run: () => {
+            selectNextOccurrence();
+            return true;
+          }
+        },
+        {
+          key: 'Ctrl-Shift-k',
+          run: () => {
+            deleteLine();
+            return true;
+          }
+        },
+        {
+          key: 'Mod-/',
+          run: () => {
+            toggleLineComment();
+            return true;
+          }
+        },
+        // VSCode-like shortcuts
+        {
+          key: 'Mod-p',
+          run: () => {
+            // Quick open / open folder
+            openFolder();
+            return true;
+          }
+        },
+        {
+          key: 'Mod-b',
+          run: () => {
+            toggleSidebar();
+            return true;
+          }
+        },
+        {
+          key: 'Mod-Shift-p',
+          run: () => {
+            // Command palette placeholder
+            const cmd = prompt('أدخل أمرًا (ميزة الاختصار غير مفعلة)');
+            if (cmd) alert('أمر غير مدعوم: ' + cmd);
+            return true;
+          }
+        },
         {
           key: 'Ctrl-s',
           run: () => {
@@ -109,6 +163,120 @@ function initEditor() {
     state,
     parent: document.getElementById('editor')
   });
+}
+
+// Editor helper commands
+function duplicateSelectionOrLine() {
+  if (!editorView) return;
+  const { state } = editorView;
+  const tr = state.changeByRange(range => {
+    const { from, to } = range;
+    if (from === to) {
+      // duplicate current line
+      const line = state.doc.lineAt(from);
+      const insertPos = line.to + 1;
+      const text = state.doc.sliceString(line.from, line.to) + '\n';
+      return { changes: { from: insertPos, insert: text }, range: EditorSelection.cursor(insertPos + text.length) };
+    } else {
+      // duplicate selection after selection
+      const selected = state.doc.sliceString(from, to);
+      return { changes: { from: to, insert: selected }, range: EditorSelection.range(from, to + selected.length) };
+    }
+  });
+  editorView.dispatch(tr);
+}
+
+function deleteLine() {
+  if (!editorView) return;
+  const { state } = editorView;
+  const tr = state.changeByRange(range => {
+    const pos = range.from;
+    const line = state.doc.lineAt(pos);
+    const toRemove = line.to < state.doc.length ? line.to + 1 : line.to;
+    return { changes: { from: line.from, to: toRemove }, range: EditorSelection.cursor(line.from) };
+  });
+  editorView.dispatch(tr);
+}
+
+function toggleLineComment() {
+  if (!editorView) return;
+  const { state } = editorView;
+  const changes = [];
+  const lines = [];
+  const sel = state.selection.main;
+  const startLine = state.doc.lineAt(sel.from).number;
+  const endLine = state.doc.lineAt(sel.to).number;
+  let allCommented = true;
+  for (let n = startLine; n <= endLine; n++) {
+    const line = state.doc.line(n);
+    lines.push(line);
+    if (!line.text.trim().startsWith('//')) allCommented = false;
+  }
+  for (const line of lines) {
+    if (allCommented) {
+      // remove leading //
+      const idx = line.text.indexOf('//');
+      if (idx !== -1) {
+        changes.push({ from: line.from + idx, to: line.from + idx + 2, insert: '' });
+      }
+    } else {
+      changes.push({ from: line.from, insert: '//' });
+    }
+  }
+  if (changes.length > 0) editorView.dispatch({ changes });
+}
+
+// Select next occurrence of current selection/word and add to selections (Ctrl+D / Cmd+D)
+function getWordRangeAt(state, pos) {
+  const line = state.doc.lineAt(pos);
+  let start = pos;
+  let end = pos;
+  while (start > line.from) {
+    const ch = state.doc.sliceString(start - 1, start);
+    if (/\w/.test(ch)) start--; else break;
+  }
+  while (end < line.to) {
+    const ch = state.doc.sliceString(end, end + 1);
+    if (/\w/.test(ch)) end++; else break;
+  }
+  return { from: start, to: end, text: state.doc.sliceString(start, end) };
+}
+
+function selectNextOccurrence() {
+  if (!editorView) return;
+  const state = editorView.state;
+  const docText = state.doc.toString();
+  const ranges = Array.from(state.selection.ranges);
+  const last = ranges[ranges.length - 1];
+  let selFrom = last.from, selTo = last.to;
+  let selectedText = selFrom === selTo ? getWordRangeAt(state, selFrom).text : state.doc.sliceString(selFrom, selTo);
+  if (!selectedText) return;
+
+  let idx = docText.indexOf(selectedText, selTo);
+  // skip overlapping or already-selected matches
+  const isOverlapping = (start, end) => ranges.some(r => !(end <= r.from || start >= r.to));
+  while (idx !== -1 && isOverlapping(idx, idx + selectedText.length)) {
+    idx = docText.indexOf(selectedText, idx + 1);
+  }
+  if (idx === -1) {
+    // wrap search from document start
+    idx = docText.indexOf(selectedText, 0);
+    while (idx !== -1 && isOverlapping(idx, idx + selectedText.length)) {
+      idx = docText.indexOf(selectedText, idx + 1);
+    }
+  }
+  if (idx === -1) return;
+
+  const newRange = EditorSelection.range(idx, idx + selectedText.length);
+  const newSelection = EditorSelection.create([...ranges, newRange]);
+  editorView.dispatch({ selection: newSelection, scrollIntoView: true });
+}
+
+// Toggle sidebar visibility (VSCode-like `Ctrl/Cmd+B`)
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
 }
 
 // File operations

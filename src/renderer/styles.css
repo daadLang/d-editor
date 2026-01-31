@@ -118,6 +118,14 @@ body {
   overflow: hidden;
 }
 
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border-left: none !important;
+}
+
 .sidebar-header {
   padding: 12px 16px;
   font-size: 12px;
