@@ -15,6 +15,98 @@ let fileTree = {};
 let isModified = false;
 let daadOutputUnsub = null;
 
+// Recent projects (stored in localStorage)
+const RECENTS_KEY = 'recentProjects';
+
+function getRecentProjects() {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRecentProjects(list) {
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, 5)));
+  } catch (e) {
+    // ignore
+  }
+}
+
+function addRecentProject(p) {
+  if (!p) return;
+  const list = getRecentProjects().filter(x => x !== p);
+  list.unshift(p);
+  saveRecentProjects(list);
+}
+
+function renderRecentProjects() {
+  const treeElement = document.getElementById('fileTree');
+  if (!treeElement) return;
+  const recents = getRecentProjects();
+  // Always show the open-project CTA at the top
+  treeElement.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'recent-projects';
+
+  const ctaRow = document.createElement('div');
+  ctaRow.style.display = 'flex';
+  ctaRow.style.justifyContent = 'center';
+  ctaRow.style.padding = '12px 8px';
+
+  const openBtn = document.createElement('button');
+  openBtn.className = 'btn-header open-project-btn';
+  openBtn.textContent = 'فتح مشروع...';
+  openBtn.addEventListener('click', async () => {
+    await openFolder();
+  });
+
+  ctaRow.appendChild(openBtn);
+  container.appendChild(ctaRow);
+
+  if (!recents || recents.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'لا توجد مشاريع سابقة. افتح مشروعًا للبدء.';
+    container.appendChild(empty);
+    treeElement.appendChild(container);
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'empty-state';
+  header.textContent = 'المشاريع الأخيرة';
+  container.appendChild(header);
+
+  for (const p of recents.slice(0, 5)) {
+    const btn = document.createElement('div');
+    btn.className = 'recent-project';
+    const name = p.split('/').pop();
+    btn.innerHTML = `<div class="name">${name}</div><div class="path">${p}</div>`;
+    btn.title = p;
+
+    const openHandler = async () => {
+      try {
+        currentFolder = p;
+        await loadFileTree(p);
+        addRecentProject(p); // move to top
+      } catch (err) {
+        console.error('Failed opening recent project:', err);
+        alert('فشل فتح المشروع: ' + err.message);
+      }
+    };
+
+    btn.addEventListener('click', openHandler);
+    container.appendChild(btn);
+  }
+
+  treeElement.appendChild(container);
+}
+
 function getFolderIcon(isExpanded) {
   if (isExpanded) {
     return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181L14.65 8H2.826a2 2 0 0 0-1.991 1.819l-.637 7a1.99 1.99 0 0 1 .342-1.31zM1 8.5A1.5 1.5 0 0 1 2.5 7h11A1.5 1.5 0 0 1 15 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-5z"/></svg>';
@@ -286,6 +378,7 @@ async function openFolder() {
     if (folderPath) {
       currentFolder = folderPath;
       await loadFileTree(folderPath);
+      addRecentProject(folderPath);
     }
   } catch (error) {
     console.error('Failed to open folder:', error);
@@ -590,3 +683,5 @@ terminalInput.addEventListener('keydown', (e) => {
 
 // Initialize
 initEditor();
+// If no folder is opened, show recent projects suggestions
+renderRecentProjects();
