@@ -8,9 +8,12 @@
   --text-secondary: #a0a0a0;
   --text-tertiary: #707070;
   
-  --accent-primary: #ff6b35;
-  --accent-secondary: #f7931e;
-  --accent-success: #4ecdc4;
+  --accent-primary: #25c2a0;
+  --accent-secondary: #21af90;
+  --accent-success: #29d5b0;
+  --accent-dark: #1a8870;
+  --accent-light: #32d8b4;
+  --accent-lightest: #4fddbf;
   
   --border-color: #333333;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -312,12 +315,12 @@ body {
 }
 
 .cm-activeLine {
-  background: rgba(255, 107, 53, 0.05);
+  background: rgba(37, 194, 160, 0.05);
 }
 
 .cm-selectionBackground,
 .cm-focused .cm-selectionBackground {
-  background: rgba(255, 107, 53, 0.2) !important;
+  background: rgba(37, 194, 160, 0.2) !important;
 }
 
 .cm-cursor {
