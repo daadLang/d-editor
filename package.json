@@ -1,6 +1,6 @@
 {
   "name": "daad-ide",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Minimal IDE for ض (Ḍād) Arabic Programming Language",
   "main": "src/main/main.js",
 
@@ -10,6 +10,7 @@
   "dev": "concurrently \"yarn dev:renderer\" \"yarn dev:electron\"",
   "build:renderer": "vite build",
   "build": "yarn build:renderer && electron-builder",
+  "release": "yarn build:renderer && electron-builder --publish always",
   "start": "electron ."
   },
 
@@ -45,7 +46,7 @@
   },
   "build": {
     "appId": "com.daad.ide",
-    "productName": "Ḍād IDE",
+    "productName": "Ḍād_IDE",
     "directories": {
       "output": "release"
     },
@@ -53,6 +54,15 @@
       "src/main/**/*",
       "dist/renderer/**/*",
       "package.json"
-    ]
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Development"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "daadLang",
+      "repo": "d-editor"
+    }
   }
 }
