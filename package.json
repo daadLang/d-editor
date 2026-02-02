@@ -47,10 +47,12 @@
     "appId": "com.daad.ide",
     "productName": "Ḍād IDE",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "files": [
-      "src/**/*"
+      "src/main/**/*",
+      "dist/renderer/**/*",
+      "package.json"
     ]
   }
 }

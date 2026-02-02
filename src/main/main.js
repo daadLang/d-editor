@@ -23,15 +23,14 @@ function createWindow() {
   });
 
   // Load from dist/renderer (built by Vite)
-  // mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
   if (isDev) {
-  mainWindow.loadURL("http://localhost:5173");
-  mainWindow.webContents.openDevTools();
-} else {
-  mainWindow.loadFile(
-    path.join(__dirname, '../../dist/renderer/index.html')
-  );
-}
+    mainWindow.loadURL("http://localhost:5173");
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(
+      path.join(__dirname, '../../dist/renderer/index.html')
+    );
+  }
   
   // Open DevTools in development
   // mainWindow.webContents.openDevTools();
