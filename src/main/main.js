@@ -26,6 +26,33 @@ function createWindow() {
   // mainWindow.webContents.openDevTools();
 }
 
+function registerContentSecurityPolicy() {
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+
+  app.whenReady().then(() => {
+    const filter = { urls: ['file://*/*'] };
+    app.session.defaultSession.webRequest.onHeadersReceived(filter, (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp]
+        }
+      });
+    });
+  });
+}
+
+registerContentSecurityPolicy();
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
