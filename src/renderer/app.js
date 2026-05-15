@@ -14,6 +14,9 @@ let editorView = null;
 let fileTree = {};
 let isModified = false;
 let daadOutputUnsub = null;
+let openTabs = [];
+let activeTabId = null;
+let suppressDocChange = false;
 
 // Recent projects (stored in localStorage)
 const RECENTS_KEY = 'recentProjects';
@@ -94,6 +97,8 @@ function renderRecentProjects() {
         currentFolder = p;
         await loadFileTree(p);
         addRecentProject(p); // move to top
+        renderWelcomeRecents();
+        updateWelcomeMode();
       } catch (err) {
         console.error('Failed opening recent project:', err);
         alert('فشل فتح المشروع: ' + err.message);
@@ -105,6 +110,7 @@ function renderRecentProjects() {
   }
 
   treeElement.appendChild(container);
+  renderWelcomeRecents();
 }
 
 function getFolderIcon(isExpanded) {
@@ -112,6 +118,148 @@ function getFolderIcon(isExpanded) {
     return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181L14.65 8H2.826a2 2 0 0 0-1.991 1.819l-.637 7a1.99 1.99 0 0 1 .342-1.31zM1 8.5A1.5 1.5 0 0 1 2.5 7h11A1.5 1.5 0 0 1 15 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-5z"/></svg>';
   }
   return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19z"/></svg>';
+}
+
+function getTabById(id) {
+  return openTabs.find(tab => tab.id === id);
+}
+
+function getActiveTab() {
+  return getTabById(activeTabId);
+}
+
+function snapshotActiveTab() {
+  const activeTab = getActiveTab();
+  if (!activeTab || activeTab.type !== 'file' || !editorView) return;
+  activeTab.doc = editorView.state.doc.toString();
+  activeTab.isDirty = isModified;
+}
+
+function renderTabs() {
+  const tabsEl = document.getElementById('tabs');
+  if (!tabsEl) return;
+  tabsEl.innerHTML = '';
+
+  for (const tab of openTabs) {
+    const tabEl = document.createElement('div');
+    tabEl.className = 'tab';
+    if (tab.id === activeTabId) tabEl.classList.add('active');
+    if (tab.isDirty) tabEl.classList.add('dirty');
+
+    const title = document.createElement('span');
+    title.className = 'tab-title';
+    title.textContent = tab.title;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'tab-close';
+    closeBtn.type = 'button';
+    closeBtn.title = 'إغلاق';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await closeTab(tab.id);
+    });
+
+    tabEl.addEventListener('click', () => {
+      setActiveTab(tab.id);
+    });
+
+    tabEl.appendChild(title);
+    tabEl.appendChild(closeBtn);
+    tabsEl.appendChild(tabEl);
+  }
+
+  const closeAllBtn = document.getElementById('closeAllTabsBtn');
+  if (closeAllBtn) closeAllBtn.disabled = openTabs.length === 0;
+}
+
+function showWelcomeView() {
+  const welcome = document.getElementById('welcome');
+  const editor = document.getElementById('editor');
+  const settingsPane = document.getElementById('settingsPane');
+  if (welcome) welcome.classList.remove('view-hidden');
+  if (editor) editor.classList.add('view-hidden');
+  if (settingsPane) settingsPane.classList.add('view-hidden');
+}
+
+function showEditorView() {
+  const welcome = document.getElementById('welcome');
+  const editor = document.getElementById('editor');
+  const settingsPane = document.getElementById('settingsPane');
+  if (welcome) welcome.classList.add('view-hidden');
+  if (editor) editor.classList.remove('view-hidden');
+  if (settingsPane) settingsPane.classList.add('view-hidden');
+}
+
+function showSettingsView() {
+  const welcome = document.getElementById('welcome');
+  const editor = document.getElementById('editor');
+  const settingsPane = document.getElementById('settingsPane');
+  if (welcome) welcome.classList.add('view-hidden');
+  if (editor) editor.classList.add('view-hidden');
+  if (settingsPane) settingsPane.classList.remove('view-hidden');
+}
+
+function renderWelcomeRecents() {
+  const recentsEl = document.getElementById('welcomeRecents');
+  if (!recentsEl) return;
+  const recents = getRecentProjects();
+  recentsEl.innerHTML = '';
+
+  if (!recents || recents.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'welcome-empty';
+    empty.textContent = 'لا توجد مشاريع سابقة بعد.';
+    recentsEl.appendChild(empty);
+    return;
+  }
+
+  for (const p of recents.slice(0, 5)) {
+    const item = document.createElement('div');
+    item.className = 'welcome-recent';
+    const name = p.split('/').pop();
+    item.innerHTML = `<div class="name">${name}</div><div class="path">${p}</div>`;
+    item.title = p;
+    item.addEventListener('click', async () => {
+      try {
+        currentFolder = p;
+        await loadFileTree(p);
+        addRecentProject(p);
+        renderWelcomeRecents();
+      } catch (err) {
+        console.error('Failed opening recent project:', err);
+        alert('فشل فتح المشروع: ' + err.message);
+      }
+    });
+    recentsEl.appendChild(item);
+  }
+}
+
+function updateWelcomeMode() {
+  const welcome = document.getElementById('welcome');
+  if (!welcome) return;
+  const hasProject = Boolean(currentFolder);
+  welcome.classList.toggle('project-open', hasProject);
+}
+
+function ensureActiveView() {
+  if (openTabs.length === 0) {
+    showWelcomeView();
+    updateWelcomeMode();
+    return;
+  }
+
+  const activeTab = getActiveTab();
+  if (!activeTab) {
+    showWelcomeView();
+    return;
+  }
+
+  if (activeTab.type === 'settings') {
+    showSettingsView();
+  } else {
+    showEditorView();
+  }
 }
 
 // Initialize editor
@@ -205,8 +353,14 @@ function initEditor() {
         {
           key: 'Mod-p',
           run: () => {
-            // Quick open / open folder
-            openFolder();
+            toggleSettingsTab();
+            return true;
+          }
+        },
+        {
+          key: 'Mod-`',
+          run: () => {
+            toggleTerminalPanel();
             return true;
           }
         },
@@ -242,9 +396,14 @@ function initEditor() {
         }
       ]),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged && currentFile) {
-          isModified = true;
-          updateSaveButton();
+        if (update.docChanged && !suppressDocChange) {
+          const activeTab = getActiveTab();
+          if (activeTab && activeTab.type === 'file') {
+            isModified = true;
+            activeTab.isDirty = true;
+            updateSaveButton();
+            renderTabs();
+          }
         }
       }),
       rtlCompartment.of([])
@@ -368,7 +527,153 @@ function selectNextOccurrence() {
 function toggleSidebar() {
   const sidebar = document.querySelector('.sidebar');
   if (!sidebar) return;
-  sidebar.classList.toggle('collapsed');
+  const isCollapsed = sidebar.classList.toggle('collapsed');
+  const toggleBtn = document.getElementById('toggleSidebarBtn');
+  if (toggleBtn) {
+    toggleBtn.setAttribute('aria-pressed', String(!isCollapsed));
+  }
+}
+
+function toggleTerminalPanel() {
+  const terminal = document.getElementById('terminalPanel');
+  if (!terminal) return;
+  terminal.classList.toggle('hidden');
+}
+
+function setActiveTab(tabId) {
+  const nextTab = getTabById(tabId);
+  if (!nextTab) return;
+
+  snapshotActiveTab();
+  activeTabId = tabId;
+  isModified = Boolean(nextTab.isDirty);
+
+  if (nextTab.type === 'file') {
+    currentFile = nextTab.path;
+    showEditorView();
+
+    if (editorView) {
+      suppressDocChange = true;
+      try {
+        editorView.dispatch({
+          changes: {
+            from: 0,
+            to: editorView.state.doc.length,
+            insert: nextTab.doc || ''
+          }
+        });
+      } finally {
+        suppressDocChange = false;
+      }
+    }
+
+    document.querySelectorAll('.tree-item').forEach(item => {
+      item.classList.remove('selected');
+      if (item.dataset.path === nextTab.path) {
+        item.classList.add('selected');
+      }
+    });
+  } else if (nextTab.type === 'settings') {
+    currentFile = null;
+    isModified = false;
+    showSettingsView();
+  } else {
+    currentFile = null;
+    isModified = false;
+    showWelcomeView();
+  }
+
+  renderTabs();
+  updateSaveButton();
+}
+
+function openSettingsTab() {
+  const existing = openTabs.find(tab => tab.type === 'settings');
+  if (existing) {
+    setActiveTab(existing.id);
+    return;
+  }
+
+  const tab = {
+    id: 'settings',
+    type: 'settings',
+    title: 'الإعدادات'
+  };
+  openTabs.push(tab);
+  setActiveTab(tab.id);
+}
+
+function toggleSettingsTab() {
+  const activeTab = getActiveTab();
+  if (activeTab && activeTab.type === 'settings') {
+    closeTab(activeTab.id);
+    return;
+  }
+  openSettingsTab();
+}
+
+async function saveTab(tab) {
+  if (!tab || tab.type !== 'file') return;
+  const content = tab.id === activeTabId && editorView ? editorView.state.doc.toString() : (tab.doc || '');
+  await window.api.writeFile(tab.path, content);
+  tab.doc = content;
+  tab.isDirty = false;
+  if (tab.id === activeTabId) {
+    isModified = false;
+    updateSaveButton();
+  }
+  renderTabs();
+}
+
+async function closeTab(tabId) {
+  const tabIndex = openTabs.findIndex(tab => tab.id === tabId);
+  if (tabIndex === -1) return;
+  const tab = openTabs[tabIndex];
+
+  if (tab.isDirty) {
+    const shouldSave = confirm('هل تريد حفظ التغييرات قبل الإغلاق؟');
+    if (shouldSave) {
+      await saveTab(tab);
+    }
+  }
+
+  openTabs.splice(tabIndex, 1);
+
+  if (activeTabId === tabId) {
+    const nextTab = openTabs[tabIndex] || openTabs[tabIndex - 1];
+    if (nextTab) {
+      setActiveTab(nextTab.id);
+    } else {
+      activeTabId = null;
+      currentFile = null;
+      isModified = false;
+      renderTabs();
+      updateSaveButton();
+      ensureActiveView();
+    }
+  } else {
+    renderTabs();
+  }
+}
+
+async function closeAllTabs() {
+  const dirtyTabs = openTabs.filter(tab => tab.isDirty);
+  if (dirtyTabs.length > 0) {
+    const shouldSave = confirm('هل تريد حفظ جميع التغييرات قبل الإغلاق؟');
+    if (shouldSave) {
+      for (const tab of dirtyTabs) {
+        await saveTab(tab);
+      }
+    }
+  }
+
+  openTabs = [];
+  activeTabId = null;
+  currentFile = null;
+  isModified = false;
+  renderTabs();
+  updateSaveButton();
+  ensureActiveView();
 }
 
 // File operations
@@ -379,6 +684,8 @@ async function openFolder() {
       currentFolder = folderPath;
       await loadFileTree(folderPath);
       addRecentProject(folderPath);
+      renderWelcomeRecents();
+      updateWelcomeMode();
     }
   } catch (error) {
     console.error('Failed to open folder:', error);
@@ -411,6 +718,7 @@ async function loadFileTree(dirPath) {
         await loadDirectoryRecursive(entry.path, wrapper);
       }
     }
+    updateWelcomeMode();
   } catch (error) {
     console.error('Failed to load file tree:', error);
   }
@@ -506,39 +814,34 @@ function createTreeItem(entry) {
 
 async function openFile(filePath) {
   try {
-    if (isModified && currentFile) {
+    const existing = openTabs.find(tab => tab.type === 'file' && tab.path === filePath);
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
+    }
+
+    const activeTab = getActiveTab();
+    if (activeTab && activeTab.type === 'file' && activeTab.isDirty) {
       const shouldSave = confirm('هل تريد حفظ التغييرات؟');
       if (shouldSave) {
         await saveCurrentFile();
       }
     }
-    
+
     const content = await window.api.readFile(filePath);
-    
-    currentFile = filePath;
-    
-    editorView.dispatch({
-      changes: {
-        from: 0,
-        to: editorView.state.doc.length,
-        insert: content
-      }
-    });
-    
-    // Reset isModified AFTER dispatch to prevent false positive from updateListener
-    isModified = false;
-    
-    document.getElementById('currentFile').textContent = filePath.split('/').pop();
-    updateSaveButton();
-    
-    // Update selection in tree
-    document.querySelectorAll('.tree-item').forEach(item => {
-      item.classList.remove('selected');
-      if (item.dataset.path === filePath) {
-        item.classList.add('selected');
-      }
-    });
-    
+    const name = filePath.split('/').pop();
+
+    const newTab = {
+      id: filePath,
+      type: 'file',
+      title: name,
+      path: filePath,
+      doc: content,
+      isDirty: false
+    };
+
+    openTabs.push(newTab);
+    setActiveTab(newTab.id);
   } catch (error) {
     console.error('Failed to open file:', error);
     alert('فشل فتح الملف: ' + error.message);
@@ -546,13 +849,17 @@ async function openFile(filePath) {
 }
 
 async function saveCurrentFile() {
-  if (!currentFile) return;
+  const activeTab = getActiveTab();
+  if (!activeTab || activeTab.type !== 'file' || !currentFile) return;
   
   try {
     const content = editorView.state.doc.toString();
     await window.api.writeFile(currentFile, content);
+    activeTab.doc = content;
+    activeTab.isDirty = false;
     isModified = false;
     updateSaveButton();
+    renderTabs();
   } catch (error) {
     console.error('Failed to save file:', error);
     alert('فشل حفظ الملف: ' + error.message);
@@ -617,8 +924,38 @@ async function runCurrentFile() {
 document.getElementById('openFolderBtn').addEventListener('click', openFolder);
 document.getElementById('runBtn').addEventListener('click', runCurrentFile);
 document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
+document.getElementById('toggleSidebarBtn').addEventListener('click', toggleSidebar);
+document.getElementById('openSettingsTabBtn').addEventListener('click', toggleSettingsTab);
+document.getElementById('closeAllTabsBtn').addEventListener('click', closeAllTabs);
+document.getElementById('welcomeOpenFolderBtn').addEventListener('click', openFolder);
+document.getElementById('welcomeSettingsBtn').addEventListener('click', toggleSettingsTab);
 document.getElementById('closeTerminalBtn').addEventListener('click', () => {
   document.getElementById('terminalPanel').classList.add('hidden');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented) return;
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+  const isMod = e.ctrlKey || e.metaKey;
+  if (!isMod) return;
+
+  if (e.key === 'b' || e.key === 'B') {
+    e.preventDefault();
+    toggleSidebar();
+    return;
+  }
+
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    toggleSettingsTab();
+    return;
+  }
+
+  if (e.key === '`') {
+    e.preventDefault();
+    toggleTerminalPanel();
+  }
 });
 
 // Terminal stdin controls
@@ -683,5 +1020,7 @@ terminalInput.addEventListener('keydown', (e) => {
 
 // Initialize
 initEditor();
-// If no folder is opened, show recent projects suggestions
 renderRecentProjects();
+renderWelcomeRecents();
+renderTabs();
+ensureActiveView();

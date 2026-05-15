@@ -85,6 +85,13 @@ body {
   transition: all var(--transition);
 }
 
+.btn-header.icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
 .btn-header:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -119,6 +126,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width var(--transition), border-color var(--transition);
 }
 
 .sidebar.collapsed {
@@ -127,6 +135,11 @@ body {
   padding: 0 !important;
   overflow: hidden !important;
   border-left: none !important;
+}
+
+.sidebar.collapsed .sidebar-header,
+.sidebar.collapsed .file-tree {
+  display: none;
 }
 
 .sidebar-header {
@@ -288,6 +301,297 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.tabs-bar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 8px;
+  gap: 8px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  padding: 0 4px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--bg-primary);
+}
+
+.tab-title {
+  font-family: var(--font-mono);
+}
+
+.tab.dirty .tab-title::after {
+  content: '•';
+  margin-right: 6px;
+  color: var(--accent-primary);
+  font-size: 14px;
+}
+
+.tab-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.tab-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-tab-action {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.btn-tab-action:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.btn-tab-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.editor-body {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-pane {
+  height: 100%;
+}
+
+.view-hidden {
+  display: none !important;
+}
+
+.welcome-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 20%, rgba(37, 194, 160, 0.06), transparent 60%);
+}
+
+.welcome-content {
+  width: min(980px, 100%);
+  padding: 8px 24px 24px;
+  text-align: center;
+}
+
+.welcome-logo {
+  width: 160px;
+  height: auto;
+  opacity: 0.18;
+  margin: 0 auto 20px;
+  display: block;
+}
+
+.welcome-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+
+.welcome-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  text-align: right;
+}
+
+.welcome-section {
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-section-title {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.welcome-view.project-open .welcome-start,
+.welcome-view.project-open .welcome-recents-section {
+  display: none;
+}
+
+.welcome-view.project-open .welcome-start,
+.welcome-view.project-open .welcome-recents-section {
+  display: none;
+}
+
+.btn-primary,
+.btn-secondary {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-arabic);
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.welcome-recents {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.welcome-empty {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(36, 36, 36, 0.6);
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.welcome-recent {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(36, 36, 36, 0.7);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.welcome-recent:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.welcome-recent .path {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  direction: ltr;
+  text-align: left;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.shortcut-item .key {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.settings-pane {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+}
+
+.settings-placeholder {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.settings-title {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.settings-description {
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 .editor-header {

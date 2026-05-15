@@ -13,6 +13,11 @@
     <header class="header">
       <div class="header-title">ض IDE</div>
       <div class="header-actions">
+        <button id="toggleSidebarBtn" class="btn-header icon" title="إظهار/إخفاء المستكشف (Ctrl+B)" aria-pressed="true">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h10a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 13 15H3a1.5 1.5 0 0 1-1.5-1.5v-11zM3 2a.5.5 0 0 0-.5.5V4h11V2.5a.5.5 0 0 0-.5-.5H3zm-.5 3v8.5A.5.5 0 0 0 3 14h4.5V5H2.5zm6 0v9H13a.5.5 0 0 0 .5-.5V5h-5z"/>
+          </svg>
+        </button>
         <button id="runBtn" class="btn-header btn-run" title="تشغيل (F5)">
           <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
@@ -43,17 +48,61 @@
 
       <!-- Editor -->
       <main class="editor-container">
-        <div class="editor-header">
-          <span id="currentFile" class="current-file">لا يوجد ملف مفتوح</span>
-          <div class="editor-actions">
-            <button id="saveBtn" class="btn-editor" title="حفظ (Ctrl+S)" disabled>
+        <div class="tabs-bar">
+          <div id="tabs" class="tabs"></div>
+          <div class="tabs-actions">
+            <button id="openSettingsTabBtn" class="btn-tab-action" title="الإعدادات">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M9.405 1.05c-.41-1.4-2.4-1.4-2.81 0l-.115.39a1.725 1.725 0 0 1-2.526 1.01l-.35-.2c-1.22-.7-2.7.78-2 2l.2.35a1.725 1.725 0 0 1-1.01 2.526l-.39.115c-1.4.41-1.4 2.4 0 2.81l.39.115a1.725 1.725 0 0 1 1.01 2.526l-.2.35c-.7 1.22.78 2.7 2 2l.35-.2a1.725 1.725 0 0 1 2.526 1.01l.115.39c.41 1.4 2.4 1.4 2.81 0l.115-.39a1.725 1.725 0 0 1 2.526-1.01l.35.2c1.22.7 2.7-.78 2-2l-.2-.35a1.725 1.725 0 0 1 1.01-2.526l.39-.115c1.4-.41 1.4-2.4 0-2.81l-.39-.115a1.725 1.725 0 0 1-1.01-2.526l.2-.35c.7-1.22-.78-2.7-2-2l-.35.2a1.725 1.725 0 0 1-2.526-1.01l-.115-.39zM8 10.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+              </svg>
+            </button>
+            <button id="saveBtn" class="btn-tab-action" title="حفظ (Ctrl+S)" disabled>
               <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1H2z"/>
               </svg>
             </button>
+            <button id="closeAllTabsBtn" class="btn-tab-action" title="إغلاق كل التبويبات" disabled>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M2.5 3a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7zM2 6.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zM2.5 9a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7zM11.854 6.354a.5.5 0 0 0-.708-.708L10 6.793 8.854 5.646a.5.5 0 1 0-.708.708L9.293 7.5 8.146 8.646a.5.5 0 0 0 .708.708L10 8.207l1.146 1.147a.5.5 0 0 0 .708-.708L10.707 7.5l1.147-1.146z"/>
+              </svg>
+            </button>
           </div>
         </div>
-        <div id="editor"></div>
+        <div class="editor-body">
+          <div id="welcome" class="welcome-view">
+            <div class="welcome-content">
+              <img id="welcomeLogo" class="welcome-logo" src="logo-dark.png" data-dark-src="logo-dark.png" data-light-src="logo.png" alt="Ḍād logo">
+              <div class="welcome-grid">
+                <div class="welcome-section welcome-start">
+                  <div class="welcome-section-title">ابدأ</div>
+                  <button id="welcomeOpenFolderBtn" class="btn-primary">فتح مشروع...</button>
+                  <button id="welcomeSettingsBtn" class="btn-secondary">الإعدادات</button>
+                </div>
+                <div class="welcome-section welcome-recents-section">
+                  <div class="welcome-section-title">مشاريع أخيرة</div>
+                  <div id="welcomeRecents" class="welcome-recents"></div>
+                </div>
+                <div class="welcome-section welcome-shortcuts">
+                  <div class="welcome-section-title">اختصارات</div>
+                  <div class="shortcut-list">
+                    <div class="shortcut-item"><span>الإعدادات</span><span class="key">Ctrl/⌘ + P</span></div>
+                    <div class="shortcut-item"><span>إظهار المستكشف</span><span class="key">Ctrl/⌘ + B</span></div>
+                    <div class="shortcut-item"><span>نافذة الإخراج</span><span class="key">Ctrl/⌘ + `</span></div>
+                    <div class="shortcut-item"><span>حفظ</span><span class="key">Ctrl/⌘ + S</span></div>
+                    <div class="shortcut-item"><span>تشغيل</span><span class="key">F5</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="editor" class="editor-pane"></div>
+          <div id="settingsPane" class="settings-pane view-hidden">
+            <div class="settings-placeholder">
+              <div class="settings-title">الإعدادات</div>
+              <div class="settings-description">سيتم إضافة صفحة الإعدادات هنا لاحقًا.</div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
 

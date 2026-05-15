@@ -4,6 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   root: 'src/renderer',
   base: './',
+  publicDir: '../../img',
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
