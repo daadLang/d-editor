@@ -160,6 +160,38 @@ ipcMain.handle('open-folder-dialog', async () => {
   return null;
 });
 
+// Create new project folder with main.daad template
+ipcMain.handle('create-project-folder', async (event, projectName) => {
+  try {
+    const os = require('os');
+    const homePath = os.homedir();
+    const docsPath = path.join(homePath, 'Documents');
+    
+    // Ensure Documents folder exists
+    await fs.mkdir(docsPath, { recursive: true });
+    
+    // Create project folder
+    const projectPath = path.join(docsPath, projectName);
+    await fs.mkdir(projectPath, { recursive: true });
+    
+    // Create main.daad template file
+    const mainDaadPath = path.join(projectPath, 'main.daad');
+    const mainContent = `دالة جمع(أ, ب) -> عدد:
+    ارجع أ + ب
+
+نتيجة = جمع(5, 10)
+
+اطبع(نتيجة)
+`;
+    await fs.writeFile(mainDaadPath, mainContent, 'utf-8');
+    
+    return projectPath;
+  } catch (error) {
+    console.error('Create project folder error:', error);
+    throw new Error(`Failed to create project: ${error.message}`);
+  }
+});
+
 // Track running processes per renderer (by webContents id)
 const runningProcesses = new Map();
 

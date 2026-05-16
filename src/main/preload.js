@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   
   // Dialog operations
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
+  createProjectFolder: (projectName) => ipcRenderer.invoke('create-project-folder', projectName),
   
   // Code execution
   runDaad: (filePath) => ipcRenderer.invoke('run-daad', filePath),

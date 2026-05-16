@@ -50,16 +50,16 @@ function addRecentProject(p) {
 function renderRecentProjects() {
   const treeElement = document.getElementById('fileTree');
   if (!treeElement) return;
-  const recents = getRecentProjects();
-  // Always show the open-project CTA at the top
+  
   treeElement.innerHTML = '';
   const container = document.createElement('div');
   container.className = 'recent-projects';
 
-  const ctaRow = document.createElement('div');
-  ctaRow.style.display = 'flex';
-  ctaRow.style.justifyContent = 'center';
-  ctaRow.style.padding = '12px 8px';
+  const buttonsRow = document.createElement('div');
+  buttonsRow.style.display = 'flex';
+  buttonsRow.style.flexDirection = 'column';
+  buttonsRow.style.gap = '8px';
+  buttonsRow.style.padding = '12px 8px';
 
   const openBtn = document.createElement('button');
   openBtn.className = 'btn-header open-project-btn';
@@ -68,49 +68,17 @@ function renderRecentProjects() {
     await openFolder();
   });
 
-  ctaRow.appendChild(openBtn);
-  container.appendChild(ctaRow);
+  const createBtn = document.createElement('button');
+  createBtn.className = 'btn-header open-project-btn';
+  createBtn.textContent = 'إنشاء مشروع جديد...';
+  createBtn.addEventListener('click', async () => {
+    await createNewProject();
+  });
 
-  if (!recents || recents.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.textContent = 'لا توجد مشاريع سابقة. افتح مشروعًا للبدء.';
-    container.appendChild(empty);
-    treeElement.appendChild(container);
-    return;
-  }
-
-  const header = document.createElement('div');
-  header.className = 'empty-state';
-  header.textContent = 'المشاريع الأخيرة';
-  container.appendChild(header);
-
-  for (const p of recents.slice(0, 5)) {
-    const btn = document.createElement('div');
-    btn.className = 'recent-project';
-    const name = p.split('/').pop();
-    btn.innerHTML = `<div class="name">${name}</div><div class="path">${p}</div>`;
-    btn.title = p;
-
-    const openHandler = async () => {
-      try {
-        currentFolder = p;
-        await loadFileTree(p);
-        addRecentProject(p); // move to top
-        renderWelcomeRecents();
-        updateWelcomeMode();
-      } catch (err) {
-        console.error('Failed opening recent project:', err);
-        alert('فشل فتح المشروع: ' + err.message);
-      }
-    };
-
-    btn.addEventListener('click', openHandler);
-    container.appendChild(btn);
-  }
-
+  buttonsRow.appendChild(openBtn);
+  buttonsRow.appendChild(createBtn);
+  container.appendChild(buttonsRow);
   treeElement.appendChild(container);
-  renderWelcomeRecents();
 }
 
 function getFolderIcon(isExpanded) {
@@ -693,6 +661,50 @@ async function openFolder() {
   }
 }
 
+function showProjectNameModal() {
+  const modal = document.getElementById('projectNameModal');
+  const input = document.getElementById('projectNameInput');
+  input.value = '';
+  input.focus();
+  modal.classList.remove('hidden');
+}
+
+function hideProjectNameModal() {
+  const modal = document.getElementById('projectNameModal');
+  modal.classList.add('hidden');
+}
+
+async function submitProjectName() {
+  const input = document.getElementById('projectNameInput');
+  const projectName = input.value.trim();
+  
+  if (!projectName) {
+    alert('يرجى إدخال اسم المشروع');
+    return;
+  }
+
+  hideProjectNameModal();
+
+  try {
+    // Create folder and template file in main process
+    const folderPath = await window.api.createProjectFolder(projectName);
+    if (folderPath) {
+      currentFolder = folderPath;
+      await loadFileTree(folderPath);
+      addRecentProject(folderPath);
+      renderWelcomeRecents();
+      updateWelcomeMode();
+    }
+  } catch (error) {
+    console.error('Failed to create project:', error);
+    alert('فشل إنشاء المشروع: ' + error.message);
+  }
+}
+
+function createNewProject() {
+  showProjectNameModal();
+}
+
 async function loadFileTree(dirPath) {
   try {
     const entries = await window.api.readDirectory(dirPath);
@@ -931,6 +943,27 @@ document.getElementById('welcomeOpenFolderBtn').addEventListener('click', openFo
 document.getElementById('welcomeSettingsBtn').addEventListener('click', toggleSettingsTab);
 document.getElementById('closeTerminalBtn').addEventListener('click', () => {
   document.getElementById('terminalPanel').classList.add('hidden');
+});
+
+// Modal dialog listeners
+document.getElementById('projectNameSubmit').addEventListener('click', submitProjectName);
+document.getElementById('projectNameCancel').addEventListener('click', hideProjectNameModal);
+document.getElementById('projectNameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitProjectName();
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    hideProjectNameModal();
+  }
+});
+
+// Click overlay to close modal
+document.getElementById('projectNameModal').addEventListener('click', (e) => {
+  if (e.target.id === 'projectNameModal' || e.target.classList.contains('modal-overlay')) {
+    hideProjectNameModal();
+  }
 });
 
 document.addEventListener('keydown', (e) => {

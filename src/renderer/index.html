@@ -85,11 +85,11 @@
                 <div class="welcome-section welcome-shortcuts">
                   <div class="welcome-section-title">اختصارات</div>
                   <div class="shortcut-list">
-                    <div class="shortcut-item"><span>الإعدادات</span><span class="key">Ctrl/⌘ + P</span></div>
-                    <div class="shortcut-item"><span>إظهار المستكشف</span><span class="key">Ctrl/⌘ + B</span></div>
-                    <div class="shortcut-item"><span>نافذة الإخراج</span><span class="key">Ctrl/⌘ + `</span></div>
-                    <div class="shortcut-item"><span>حفظ</span><span class="key">Ctrl/⌘ + S</span></div>
-                    <div class="shortcut-item"><span>تشغيل</span><span class="key">F5</span></div>
+                    <div class="shortcut-item"><span>الإعدادات</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">P</span></span></div>
+                    <div class="shortcut-item"><span>إظهار المستكشف</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">B</span></span></div>
+                    <div class="shortcut-item"><span>نافذة الإخراج</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">`</span></span></div>
+                    <div class="shortcut-item"><span>حفظ</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">S</span></span></div>
+                    <div class="shortcut-item"><span>تشغيل</span><span class="key-group"><span class="key-badge">F5</span></span></div>
                   </div>
                 </div>
               </div>
@@ -116,6 +116,24 @@
       <div class="terminal-input-row">
         <input id="terminalInput" class="terminal-input" placeholder="أدخل نصًا للإرسال إلى stdin...">
         <button id="sendStdinBtn" class="btn-terminal">إرسال</button>
+      </div>
+    </div>
+
+    <!-- Project Name Modal -->
+    <div id="projectNameModal" class="modal hidden">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>إنشاء مشروع جديد</h2>
+        </div>
+        <div class="modal-body">
+          <label for="projectNameInput">اسم المشروع:</label>
+          <input id="projectNameInput" type="text" class="modal-input" placeholder="أدخل اسم المشروع...">
+        </div>
+        <div class="modal-footer">
+          <button id="projectNameCancel" class="btn-secondary">إلغاء</button>
+          <button id="projectNameSubmit" class="btn-primary">إنشاء</button>
+        </div>
       </div>
     </div>
   </div>
