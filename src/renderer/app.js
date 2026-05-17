@@ -1,11 +1,10 @@
 import { EditorView, keymap, highlightActiveLine, lineNumbers } from '@codemirror/view';
 import { EditorState, Compartment, EditorSelection } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
-import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import { completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language';
-import { python } from '@codemirror/lang-python';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { daadCompletions } from '../language/autocomplete.js';
+import { daad } from '../language/language.js';
 
 // State
 let currentFile = null;
@@ -232,8 +231,6 @@ function ensureActiveView() {
 
 // Initialize editor
 function initEditor() {
-  const rtlCompartment = new Compartment();
-  
   const state = EditorState.create({
     doc: '',
     extensions: [
@@ -242,7 +239,7 @@ function initEditor() {
       bracketMatching(),
       EditorView.lineWrapping,
       EditorView.theme({
-        '&': { 
+        '&': {
           height: '100%',
           direction: 'rtl'
         },
@@ -268,81 +265,51 @@ function initEditor() {
         '.cm-line': {
           direction: 'rtl',
           unicodeBidi: 'plaintext'
-        },
-        '.cm-gutters': {
-          direction: 'ltr',
-          backgroundColor: 'var(--bg-secondary)',
-          borderRight: 'none',
-          borderLeft: '1px solid var(--border-color)'
         }
       }),
       oneDark,
-      python(), // Using Python for indentation logic
-      autocompletion({
-        override: [daadCompletions],
-        activateOnTyping: true,
-        closeOnBlur: true
-      }),
+
+      // ── Daad language: tokenizer + highlighting + autocomplete ──────────
+      // This single call replaces both python() and the separate
+      // autocompletion({ override: [daadCompletions] }) that was here before.
+      daad(),
+
       syntaxHighlighting(defaultHighlightStyle),
       keymap.of([
         ...defaultKeymap,
         ...completionKeymap,
         indentWithTab,
-        // Editor-specific commands
         {
           key: 'Ctrl-d',
-          run: () => {
-            selectNextOccurrence();
-            return true;
-          }
+          run: () => { selectNextOccurrence(); return true; }
         },
         {
           key: 'Mod-d',
-          run: () => {
-            selectNextOccurrence();
-            return true;
-          }
+          run: () => { selectNextOccurrence(); return true; }
         },
         {
           key: 'Ctrl-Shift-k',
-          run: () => {
-            deleteLine();
-            return true;
-          }
+          run: () => { deleteLine(); return true; }
         },
         {
           key: 'Mod-/',
-          run: () => {
-            toggleLineComment();
-            return true;
-          }
+          run: () => { toggleLineComment(); return true; }
         },
-        // VSCode-like shortcuts
         {
           key: 'Mod-p',
-          run: () => {
-            toggleSettingsTab();
-            return true;
-          }
+          run: () => { toggleSettingsTab(); return true; }
         },
         {
           key: 'Mod-`',
-          run: () => {
-            toggleTerminalPanel();
-            return true;
-          }
+          run: () => { toggleTerminalPanel(); return true; }
         },
         {
           key: 'Mod-b',
-          run: () => {
-            toggleSidebar();
-            return true;
-          }
+          run: () => { toggleSidebar(); return true; }
         },
         {
           key: 'Mod-Shift-p',
           run: () => {
-            // Command palette placeholder
             const cmd = prompt('أدخل أمرًا (ميزة الاختصار غير مفعلة)');
             if (cmd) alert('أمر غير مدعوم: ' + cmd);
             return true;
@@ -350,17 +317,11 @@ function initEditor() {
         },
         {
           key: 'Ctrl-s',
-          run: () => {
-            saveCurrentFile();
-            return true;
-          }
+          run: () => { saveCurrentFile(); return true; }
         },
         {
           key: 'F5',
-          run: () => {
-            runCurrentFile();
-            return true;
-          }
+          run: () => { runCurrentFile(); return true; }
         }
       ]),
       EditorView.updateListener.of((update) => {
@@ -373,8 +334,7 @@ function initEditor() {
             renderTabs();
           }
         }
-      }),
-      rtlCompartment.of([])
+      })
     ]
   });
 
@@ -385,26 +345,6 @@ function initEditor() {
 }
 
 // Editor helper commands
-function duplicateSelectionOrLine() {
-  if (!editorView) return;
-  const { state } = editorView;
-  const tr = state.changeByRange(range => {
-    const { from, to } = range;
-    if (from === to) {
-      // duplicate current line
-      const line = state.doc.lineAt(from);
-      const insertPos = line.to + 1;
-      const text = state.doc.sliceString(line.from, line.to) + '\n';
-      return { changes: { from: insertPos, insert: text }, range: EditorSelection.cursor(insertPos + text.length) };
-    } else {
-      // duplicate selection after selection
-      const selected = state.doc.sliceString(from, to);
-      return { changes: { from: to, insert: selected }, range: EditorSelection.range(from, to + selected.length) };
-    }
-  });
-  editorView.dispatch(tr);
-}
-
 function deleteLine() {
   if (!editorView) return;
   const { state } = editorView;
@@ -429,23 +369,21 @@ function toggleLineComment() {
   for (let n = startLine; n <= endLine; n++) {
     const line = state.doc.line(n);
     lines.push(line);
-    if (!line.text.trim().startsWith('//')) allCommented = false;
+    if (!line.text.trim().startsWith('#')) allCommented = false;
   }
   for (const line of lines) {
     if (allCommented) {
-      // remove leading //
-      const idx = line.text.indexOf('//');
+      const idx = line.text.indexOf('#');
       if (idx !== -1) {
-        changes.push({ from: line.from + idx, to: line.from + idx + 2, insert: '' });
+        changes.push({ from: line.from + idx, to: line.from + idx + 1, insert: '' });
       }
     } else {
-      changes.push({ from: line.from, insert: '//' });
+      changes.push({ from: line.from, insert: '#' });
     }
   }
   if (changes.length > 0) editorView.dispatch({ changes });
 }
 
-// Select next occurrence of current selection/word and add to selections (Ctrl+D / Cmd+D)
 function getWordRangeAt(state, pos) {
   const line = state.doc.lineAt(pos);
   let start = pos;
@@ -468,17 +406,17 @@ function selectNextOccurrence() {
   const ranges = Array.from(state.selection.ranges);
   const last = ranges[ranges.length - 1];
   let selFrom = last.from, selTo = last.to;
-  let selectedText = selFrom === selTo ? getWordRangeAt(state, selFrom).text : state.doc.sliceString(selFrom, selTo);
+  let selectedText = selFrom === selTo
+    ? getWordRangeAt(state, selFrom).text
+    : state.doc.sliceString(selFrom, selTo);
   if (!selectedText) return;
 
   let idx = docText.indexOf(selectedText, selTo);
-  // skip overlapping or already-selected matches
   const isOverlapping = (start, end) => ranges.some(r => !(end <= r.from || start >= r.to));
   while (idx !== -1 && isOverlapping(idx, idx + selectedText.length)) {
     idx = docText.indexOf(selectedText, idx + 1);
   }
   if (idx === -1) {
-    // wrap search from document start
     idx = docText.indexOf(selectedText, 0);
     while (idx !== -1 && isOverlapping(idx, idx + selectedText.length)) {
       idx = docText.indexOf(selectedText, idx + 1);
@@ -491,7 +429,6 @@ function selectNextOccurrence() {
   editorView.dispatch({ selection: newSelection, scrollIntoView: true });
 }
 
-// Toggle sidebar visibility (VSCode-like `Ctrl/Cmd+B`)
 function toggleSidebar() {
   const sidebar = document.querySelector('.sidebar');
   if (!sidebar) return;
@@ -561,12 +498,7 @@ function openSettingsTab() {
     setActiveTab(existing.id);
     return;
   }
-
-  const tab = {
-    id: 'settings',
-    type: 'settings',
-    title: 'الإعدادات'
-  };
+  const tab = { id: 'settings', type: 'settings', title: 'الإعدادات' };
   openTabs.push(tab);
   setActiveTab(tab.id);
 }
@@ -582,7 +514,9 @@ function toggleSettingsTab() {
 
 async function saveTab(tab) {
   if (!tab || tab.type !== 'file') return;
-  const content = tab.id === activeTabId && editorView ? editorView.state.doc.toString() : (tab.doc || '');
+  const content = tab.id === activeTabId && editorView
+    ? editorView.state.doc.toString()
+    : (tab.doc || '');
   await window.api.writeFile(tab.path, content);
   tab.doc = content;
   tab.isDirty = false;
@@ -600,9 +534,7 @@ async function closeTab(tabId) {
 
   if (tab.isDirty) {
     const shouldSave = confirm('هل تريد حفظ التغييرات قبل الإغلاق؟');
-    if (shouldSave) {
-      await saveTab(tab);
-    }
+    if (shouldSave) await saveTab(tab);
   }
 
   openTabs.splice(tabIndex, 1);
@@ -629,12 +561,9 @@ async function closeAllTabs() {
   if (dirtyTabs.length > 0) {
     const shouldSave = confirm('هل تريد حفظ جميع التغييرات قبل الإغلاق؟');
     if (shouldSave) {
-      for (const tab of dirtyTabs) {
-        await saveTab(tab);
-      }
+      for (const tab of dirtyTabs) await saveTab(tab);
     }
   }
-
   openTabs = [];
   activeTabId = null;
   currentFile = null;
@@ -644,7 +573,6 @@ async function closeAllTabs() {
   ensureActiveView();
 }
 
-// File operations
 async function openFolder() {
   try {
     const folderPath = await window.api.openFolderDialog();
@@ -670,23 +598,18 @@ function showProjectNameModal() {
 }
 
 function hideProjectNameModal() {
-  const modal = document.getElementById('projectNameModal');
-  modal.classList.add('hidden');
+  document.getElementById('projectNameModal').classList.add('hidden');
 }
 
 async function submitProjectName() {
   const input = document.getElementById('projectNameInput');
   const projectName = input.value.trim();
-  
   if (!projectName) {
     alert('يرجى إدخال اسم المشروع');
     return;
   }
-
   hideProjectNameModal();
-
   try {
-    // Create folder and template file in main process
     const folderPath = await window.api.createProjectFolder(projectName);
     if (folderPath) {
       currentFolder = folderPath;
@@ -710,22 +633,18 @@ async function loadFileTree(dirPath) {
     const entries = await window.api.readDirectory(dirPath);
     const treeElement = document.getElementById('fileTree');
     treeElement.innerHTML = '';
-    
     fileTree = {};
-    
-    // Sort: directories first, then files
+
     entries.sort((a, b) => {
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
       return a.name.localeCompare(b.name, 'ar');
     });
-    
+
     for (const entry of entries) {
-      if (entry.name.startsWith('.')) continue; // Skip hidden files
-      
-      const { wrapper, item } = createTreeItem(entry);
+      if (entry.name.startsWith('.')) continue;
+      const { wrapper } = createTreeItem(entry);
       treeElement.appendChild(wrapper);
-      
       if (entry.isDirectory) {
         await loadDirectoryRecursive(entry.path, wrapper);
       }
@@ -737,35 +656,30 @@ async function loadFileTree(dirPath) {
 }
 
 async function loadDirectoryRecursive(dirPath, parentWrapper, depth = 0) {
-  if (depth > 2) return; // Limit depth
-  
+  if (depth > 2) return;
   try {
     const entries = await window.api.readDirectory(dirPath);
     const childContainer = document.createElement('div');
     childContainer.className = 'tree-children';
     childContainer.style.display = 'none';
-    
+
     entries.sort((a, b) => {
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
       return a.name.localeCompare(b.name, 'ar');
     });
-    
+
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue;
-      
-      const { wrapper, item } = createTreeItem(entry);
+      const { wrapper } = createTreeItem(entry);
       childContainer.appendChild(wrapper);
-      
       if (entry.isDirectory) {
         await loadDirectoryRecursive(entry.path, wrapper, depth + 1);
       }
     }
-    
+
     if (childContainer.children.length > 0) {
       parentWrapper.appendChild(childContainer);
-      
-      // Get the tree-item header inside the parent wrapper
       const parentItem = parentWrapper.querySelector(':scope > .tree-item');
       if (parentItem) {
         parentItem.addEventListener('click', (e) => {
@@ -773,12 +687,8 @@ async function loadDirectoryRecursive(dirPath, parentWrapper, depth = 0) {
           const isExpanded = childContainer.style.display !== 'none';
           childContainer.style.display = isExpanded ? 'none' : 'block';
           parentItem.classList.toggle('expanded', !isExpanded);
-          
-          // Update folder icon
           const iconSvg = parentItem.querySelector('.tree-item-icon');
-          if (iconSvg) {
-            iconSvg.outerHTML = getFolderIcon(!isExpanded);
-          }
+          if (iconSvg) iconSvg.outerHTML = getFolderIcon(!isExpanded);
         });
       }
     }
@@ -788,38 +698,29 @@ async function loadDirectoryRecursive(dirPath, parentWrapper, depth = 0) {
 }
 
 function createTreeItem(entry) {
-  // Create a wrapper for each entry (for directories, this will contain both header and children)
   const wrapper = document.createElement('div');
   wrapper.className = 'tree-entry';
   wrapper.dataset.path = entry.path;
-  
+
   const item = document.createElement('div');
   item.className = 'tree-item';
-  
+
   if (entry.isDirectory) {
     item.classList.add('directory');
-    item.innerHTML = `
-      ${getFolderIcon(false)}
-      <span>${entry.name}</span>
-    `;
+    item.innerHTML = `${getFolderIcon(false)}<span>${entry.name}</span>`;
   } else {
-    const icon = {
-    svg: 'M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm8 1v5h5M8 11h8v2H8v-2zm0 4h8v2H8v-2z',
-    color: '#777777'
-  };
     item.innerHTML = `
-      <svg class="tree-item-icon file-icon" fill="${icon.color}" viewBox="0 0 24 24">
-        <path d="${icon.svg}"/>
+      <svg class="tree-item-icon file-icon" fill="#777777" viewBox="0 0 24 24">
+        <path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm8 1v5h5M8 11h8v2H8v-2zm0 4h8v2H8v-2z"/>
       </svg>
       <span>${entry.name}</span>
     `;
-    
     item.addEventListener('click', async (e) => {
       e.stopPropagation();
       await openFile(entry.path);
     });
   }
-  
+
   wrapper.appendChild(item);
   return { wrapper, item };
 }
@@ -835,9 +736,7 @@ async function openFile(filePath) {
     const activeTab = getActiveTab();
     if (activeTab && activeTab.type === 'file' && activeTab.isDirty) {
       const shouldSave = confirm('هل تريد حفظ التغييرات؟');
-      if (shouldSave) {
-        await saveCurrentFile();
-      }
+      if (shouldSave) await saveCurrentFile();
     }
 
     const content = await window.api.readFile(filePath);
@@ -863,7 +762,6 @@ async function openFile(filePath) {
 async function saveCurrentFile() {
   const activeTab = getActiveTab();
   if (!activeTab || activeTab.type !== 'file' || !currentFile) return;
-  
   try {
     const content = editorView.state.doc.toString();
     await window.api.writeFile(currentFile, content);
@@ -883,26 +781,19 @@ function updateSaveButton() {
   saveBtn.disabled = !isModified;
 }
 
-// Code execution
 async function runCurrentFile() {
   if (!currentFile) {
     alert('لا يوجد ملف مفتوح للتشغيل');
     return;
   }
-  
-  // Save file first if modified
-  if (isModified) {
-    await saveCurrentFile();
-  }
-  
-  // Show terminal
+  if (isModified) await saveCurrentFile();
+
   const terminal = document.getElementById('terminalPanel');
   const output = document.getElementById('terminalOutput');
   terminal.classList.remove('hidden');
   output.innerHTML = '<div class="terminal-line terminal-stdout">جاري التشغيل...</div>';
-  
+
   try {
-    // Set up output listener once to avoid duplicated output
     if (!daadOutputUnsub) {
       daadOutputUnsub = window.api.onDaadOutput((data) => {
         const line = document.createElement('div');
@@ -912,17 +803,14 @@ async function runCurrentFile() {
         output.scrollTop = output.scrollHeight;
       });
     }
-    
-    // Execute
+
     const result = await window.api.runDaad(currentFile);
-    
-    // Show completion message
+
     const completionLine = document.createElement('div');
     completionLine.className = 'terminal-line terminal-stdout';
     completionLine.textContent = `\nانتهى التشغيل برمز الخروج: ${result.code}`;
     output.appendChild(completionLine);
     output.scrollTop = output.scrollHeight;
-    
   } catch (error) {
     const errorLine = document.createElement('div');
     errorLine.className = 'terminal-line terminal-stderr';
@@ -932,7 +820,8 @@ async function runCurrentFile() {
   }
 }
 
-// Event listeners
+// ── Event listeners ──────────────────────────────────────────────────────────
+
 document.getElementById('openFolderBtn').addEventListener('click', openFolder);
 document.getElementById('runBtn').addEventListener('click', runCurrentFile);
 document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
@@ -945,21 +834,12 @@ document.getElementById('closeTerminalBtn').addEventListener('click', () => {
   document.getElementById('terminalPanel').classList.add('hidden');
 });
 
-// Modal dialog listeners
 document.getElementById('projectNameSubmit').addEventListener('click', submitProjectName);
 document.getElementById('projectNameCancel').addEventListener('click', hideProjectNameModal);
 document.getElementById('projectNameInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    submitProjectName();
-  }
-  if (e.key === 'Escape') {
-    e.preventDefault();
-    hideProjectNameModal();
-  }
+  if (e.key === 'Enter') { e.preventDefault(); submitProjectName(); }
+  if (e.key === 'Escape') { e.preventDefault(); hideProjectNameModal(); }
 });
-
-// Click overlay to close modal
 document.getElementById('projectNameModal').addEventListener('click', (e) => {
   if (e.target.id === 'projectNameModal' || e.target.classList.contains('modal-overlay')) {
     hideProjectNameModal();
@@ -973,25 +853,13 @@ document.addEventListener('keydown', (e) => {
   const isMod = e.ctrlKey || e.metaKey;
   if (!isMod) return;
 
-  if (e.key === 'b' || e.key === 'B') {
-    e.preventDefault();
-    toggleSidebar();
-    return;
-  }
-
-  if (e.key === 'p' || e.key === 'P') {
-    e.preventDefault();
-    toggleSettingsTab();
-    return;
-  }
-
-  if (e.key === '`') {
-    e.preventDefault();
-    toggleTerminalPanel();
-  }
+  if (e.key === 'b' || e.key === 'B') { e.preventDefault(); toggleSidebar(); return; }
+  if (e.key === 'p' || e.key === 'P') { e.preventDefault(); toggleSettingsTab(); return; }
+  if (e.key === '`') { e.preventDefault(); toggleTerminalPanel(); }
 });
 
-// Terminal stdin controls
+// ── Terminal stdin ────────────────────────────────────────────────────────────
+
 const terminalInput = document.getElementById('terminalInput');
 const sendStdinBtn = document.getElementById('sendStdinBtn');
 const endStdinBtn = document.getElementById('endStdinBtn');
@@ -1001,7 +869,6 @@ async function sendStdin() {
   if (!val) return;
   const output = document.getElementById('terminalOutput');
 
-  // Show the input in the terminal output
   const line = document.createElement('div');
   line.className = 'terminal-line terminal-stdin';
   line.textContent = val;
@@ -1009,17 +876,10 @@ async function sendStdin() {
   output.scrollTop = output.scrollHeight;
 
   try {
-    // Send newline so programs reading lines receive it
-    const ok = await window.api.writeToDaadStdin(val + '\n');
-    // If there's no running process, silently ignore (do not show error)
-    if (!ok) {
-      // nothing to do
-    }
+    await window.api.writeToDaadStdin(val + '\n');
   } catch (err) {
-    // If ipc call fails unexpectedly, log to console but don't show user-facing error
     console.warn('writeToDaadStdin failed:', err);
   }
-
   terminalInput.value = '';
 }
 
@@ -1040,18 +900,13 @@ async function endStdin() {
 }
 
 sendStdinBtn.addEventListener('click', sendStdin);
-if (endStdinBtn) {
-  endStdinBtn.addEventListener('click', endStdin);
-}
-
+if (endStdinBtn) endStdinBtn.addEventListener('click', endStdin);
 terminalInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    sendStdin();
-  }
+  if (e.key === 'Enter') { e.preventDefault(); sendStdin(); }
 });
 
-// Initialize
+// ── Boot ─────────────────────────────────────────────────────────────────────
+
 initEditor();
 renderRecentProjects();
 renderWelcomeRecents();

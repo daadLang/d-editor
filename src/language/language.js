@@ -1,61 +1,44 @@
-import { parser } from './parser.js';
-import {
-  LRLanguage,
-  LanguageSupport,
-  indentNodeProp,
-  foldNodeProp,
-  foldInside,
-  delimitedIndent
-} from '@codemirror/language';
-import { styleTags, tags as t } from '@lezer/highlight';
+/**
+ * language.js — Daad (ض) CodeMirror 6 language support
+ *
+ * Wraps the stream parser in a StreamLanguage so CodeMirror can use it
+ * as a first-class LanguageSupport extension, exactly like any other CM6
+ * language package.
+ *
+ * Why StreamLanguage instead of LRLanguage + Lezer?
+ * -------------------------------------------------
+ * The Lezer Python parser classifies tokens by *structural role* (IfStatement,
+ * FunctionDefinition, …). The Arabic keywords are never in those node names,
+ * so `styleTags()` on an LRLanguage can never reach them.  StreamLanguage
+ * lets us return a token class string directly from the tokenizer, which is
+ * exactly what we need for keyword-level matching in any script.
+ */
 
-// Define the ض language
-export const daadLanguage = LRLanguage.define({
-  name: 'daad',
-  parser: parser.configure({
-    props: [
-      indentNodeProp.add({
-        IfStatement: delimitedIndent({ closing: ')', align: false }),
-        WhileStatement: delimitedIndent({ closing: ')', align: false }),
-        ForStatement: delimitedIndent({ closing: ')', align: false }),
-        FunctionDef: delimitedIndent({ closing: ')', align: false })
-      }),
-      foldNodeProp.add({
-        'IfStatement WhileStatement ForStatement FunctionDef': foldInside
-      }),
-      styleTags({
-        // Control flow - accept both correct and common spellings
-        'اذا إذا لو واذا وإذا ولو والا وإلا': t.controlKeyword,
-        'طالما مادام': t.controlKeyword,
-        'لكل في': t.controlKeyword,
-        'كرر مرات': t.controlKeyword,
-        'استورد إستورد كـ ك باسم': t.moduleKeyword,
-        'ارجع أرجع': t.controlKeyword,
-        'دالة': t.definitionKeyword,
-        'اخرج أخرج تابع': t.controlKeyword,
-        'صحيح خطا خطأ': t.bool,
-        'و او أو': t.logicOperator,
-        'ليس لا': t.operatorKeyword,
-        'String': t.string,
-        'Number': t.number,
-        'Comment': t.lineComment,
-        'Identifier': t.variableName,
-        'FunctionName': t.function(t.variableName),
-        '( )': t.paren,
-        '[ ]': t.squareBracket,
-        '{ }': t.brace,
-        ',': t.separator,
-        ':': t.punctuation
-      })
-    ]
-  }),
-  languageData: {
-    commentTokens: { line: '#' },
-    indentOnInput: /^\s*[\}\]\)]$/,
-    closeBrackets: { brackets: ['(', '[', '{', '"', "'"] }
-  }
-});
+import { StreamLanguage, LanguageSupport } from '@codemirror/language';
+import { daadStreamParser } from './parser.js';
+import { daadCompletions } from './autocomplete.js';
+import { autocompletion } from '@codemirror/autocomplete';
 
+// ── language definition ──────────────────────────────────────────────────────
+
+/**
+ * The core Daad StreamLanguage.
+ * Exported so callers can use it with `syntaxHighlighting`, tree queries, etc.
+ */
+export const daadLanguage = StreamLanguage.define(daadStreamParser);
+
+// ── language support factory ─────────────────────────────────────────────────
+
+/**
+ * daad() — returns a LanguageSupport value ready to be added to an EditorView.
+ *
+ * Usage:
+ *   import { daad } from './language.js';
+ *   new EditorView({ extensions: [basicSetup, daad()] });
+ */
 export function daad() {
-  return new LanguageSupport(daadLanguage);
+  return new LanguageSupport(daadLanguage, [
+    // Keyword + local-identifier completion
+    autocompletion({ override: [daadCompletions] }),
+  ]);
 }
