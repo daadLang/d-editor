@@ -161,17 +161,17 @@ ipcMain.handle('open-folder-dialog', async () => {
 });
 
 // Create new project folder with main.daad template
-ipcMain.handle('create-project-folder', async (event, projectName) => {
+ipcMain.handle('create-project-folder', async (event, projectName, basePath) => {
   try {
     const os = require('os');
     const homePath = os.homedir();
-    const docsPath = path.join(homePath, 'Documents');
+    const targetBasePath = basePath || path.join(homePath, 'Documents');
     
-    // Ensure Documents folder exists
-    await fs.mkdir(docsPath, { recursive: true });
+    // Ensure base folder exists
+    await fs.mkdir(targetBasePath, { recursive: true });
     
     // Create project folder
-    const projectPath = path.join(docsPath, projectName);
+    const projectPath = path.join(targetBasePath, projectName);
     await fs.mkdir(projectPath, { recursive: true });
     
     // Create main.daad template file
@@ -260,4 +260,47 @@ ipcMain.handle('end-daad-stdin', (event) => {
   } catch (err) {
     return false;
   }
+});
+
+// Settings management (persist like VS Code-style JSON)
+const settingsDir = path.join(require('os').homedir(), '.daad-ide');
+const settingsFile = path.join(settingsDir, 'settings.json');
+
+async function ensureSettingsDir() {
+  await fs.mkdir(settingsDir, { recursive: true });
+}
+
+ipcMain.handle('read-settings', async () => {
+  try {
+    await ensureSettingsDir();
+    const raw = await fs.readFile(settingsFile, 'utf-8');
+    return JSON.parse(raw);
+  } catch (error) {
+    return {
+      projectPath: path.join(require('os').homedir(), 'Documents'),
+      theme: 'vsCodeDark',
+      themeCategory: 'dark'
+    };
+  }
+});
+
+ipcMain.handle('write-settings', async (event, settings) => {
+  try {
+    await ensureSettingsDir();
+    await fs.writeFile(settingsFile, JSON.stringify(settings, null, 2), 'utf-8');
+    return true;
+  } catch (error) {
+    throw new Error(`Failed to write settings: ${error.message}`);
+  }
+});
+
+ipcMain.handle('select-project-path', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
 });

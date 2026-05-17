@@ -97,9 +97,26 @@
           </div>
           <div id="editor" class="editor-pane"></div>
           <div id="settingsPane" class="settings-pane view-hidden">
-            <div class="settings-placeholder">
+            <div class="settings-container">
               <div class="settings-title">الإعدادات</div>
-              <div class="settings-description">سيتم إضافة صفحة الإعدادات هنا لاحقًا.</div>
+              <div class="settings-description">إعدادات عامة للمشروع والمظهر.</div>
+
+              <div class="settings-group">
+                <label class="settings-label" for="projectPathInput">المسار الافتراضي لإنشاء المشاريع</label>
+                <div class="settings-row">
+                  <input id="projectPathInput" class="settings-input" type="text" readonly>
+                  <button id="projectPathBtn" class="btn-secondary" type="button">اختيار...</button>
+                </div>
+              </div>
+
+              <div class="settings-group">
+                <label class="settings-label" for="themeSelect">المظهر (CodeMirror + IDE)</label>
+                <select id="themeSelect" class="settings-select"></select>
+              </div>
+
+              <div class="settings-actions">
+                <button id="saveSettingsBtn" class="btn-primary" type="button">حفظ الإعدادات</button>
+              </div>
             </div>
           </div>
         </div>

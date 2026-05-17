@@ -3,7 +3,37 @@ import { EditorState, Compartment, EditorSelection } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language';
-import { oneDark } from '@codemirror/theme-one-dark';
+import {
+  abcdef,
+  abyss,
+  androidStudio,
+  andromeda,
+  basicDark,
+  basicLight,
+  catppuccinMocha,
+  cobalt2,
+  forest,
+  githubDark,
+  githubLight,
+  gruvboxDark,
+  gruvboxLight,
+  highContrastDark,
+  highContrastLight,
+  materialDark,
+  materialLight,
+  materialOcean,
+  monokai,
+  nord,
+  palenight,
+  solarizedDark,
+  solarizedLight,
+  synthwave84,
+  tokyoNightDay,
+  tokyoNightStorm,
+  volcano,
+  vsCodeDark,
+  vsCodeLight
+} from '@fsegurai/codemirror-theme-bundle';
 import { daad } from '../language/language.js';
 
 // State
@@ -19,6 +49,78 @@ let suppressDocChange = false;
 
 // Recent projects (stored in localStorage)
 const RECENTS_KEY = 'recentProjects';
+
+// Editor theme compartment for runtime switching
+const editorThemeCompartment = new Compartment();
+
+const THEME_CATALOG = [
+  { key: 'abcdef', label: 'Abcdef', category: 'dark', cm: abcdef },
+  { key: 'abyss', label: 'Abyss', category: 'dark', cm: abyss },
+  { key: 'androidStudio', label: 'Android Studio', category: 'dark', cm: androidStudio },
+  { key: 'andromeda', label: 'Andromeda', category: 'dark', cm: andromeda },
+  { key: 'basicDark', label: 'Basic Dark', category: 'dark', cm: basicDark },
+  { key: 'basicLight', label: 'Basic Light', category: 'light', cm: basicLight },
+  { key: 'catppuccinMocha', label: 'Catppuccin Mocha', category: 'dark', cm: catppuccinMocha },
+  { key: 'cobalt2', label: 'Cobalt2', category: 'dark', cm: cobalt2 },
+  { key: 'forest', label: 'Forest', category: 'dark', cm: forest },
+  { key: 'githubDark', label: 'GitHub Dark', category: 'dark', cm: githubDark },
+  { key: 'githubLight', label: 'GitHub Light', category: 'light', cm: githubLight },
+  { key: 'gruvboxDark', label: 'Gruvbox Dark', category: 'dark', cm: gruvboxDark },
+  { key: 'gruvboxLight', label: 'Gruvbox Light', category: 'light', cm: gruvboxLight },
+  { key: 'highContrastDark', label: 'High Contrast Dark', category: 'dark', cm: highContrastDark },
+  { key: 'highContrastLight', label: 'High Contrast Light', category: 'light', cm: highContrastLight },
+  { key: 'materialDark', label: 'Material Dark', category: 'dark', cm: materialDark },
+  { key: 'materialLight', label: 'Material Light', category: 'light', cm: materialLight },
+  { key: 'materialOcean', label: 'Material Ocean', category: 'dark', cm: materialOcean },
+  { key: 'monokai', label: 'Monokai', category: 'dark', cm: monokai },
+  { key: 'nord', label: 'Nord', category: 'dark', cm: nord },
+  { key: 'palenight', label: 'Palenight', category: 'dark', cm: palenight },
+  { key: 'solarizedDark', label: 'Solarized Dark', category: 'dark', cm: solarizedDark },
+  { key: 'solarizedLight', label: 'Solarized Light', category: 'light', cm: solarizedLight },
+  { key: 'synthwave84', label: 'Synthwave 84', category: 'dark', cm: synthwave84 },
+  { key: 'tokyoNightDay', label: 'Tokyo Night Day', category: 'light', cm: tokyoNightDay },
+  { key: 'tokyoNightStorm', label: 'Tokyo Night Storm', category: 'dark', cm: tokyoNightStorm },
+  { key: 'volcano', label: 'Volcano', category: 'dark', cm: volcano },
+  { key: 'vsCodeDark', label: 'VS Code Dark', category: 'dark', cm: vsCodeDark },
+  { key: 'vsCodeLight', label: 'VS Code Light', category: 'light', cm: vsCodeLight }
+];
+
+const UI_PALETTES = {
+  dark: {
+    '--bg-primary': '#0f1117',
+    '--bg-secondary': '#171b24',
+    '--bg-tertiary': '#1e2430',
+    '--bg-hover': '#273042',
+    '--text-primary': '#e6edf3',
+    '--text-secondary': '#b8c0cc',
+    '--text-tertiary': '#8b96a7',
+    '--accent-primary': '#4ea1ff',
+    '--accent-secondary': '#2f81f7',
+    '--accent-success': '#3fb950',
+    '--border-color': '#30363d',
+    '--shadow': '0 2px 8px rgba(0, 0, 0, 0.35)'
+  },
+  light: {
+    '--bg-primary': '#ffffff',
+    '--bg-secondary': '#f6f8fa',
+    '--bg-tertiary': '#eef2f7',
+    '--bg-hover': '#e6ebf2',
+    '--text-primary': '#1f2328',
+    '--text-secondary': '#57606a',
+    '--text-tertiary': '#6e7781',
+    '--accent-primary': '#0969da',
+    '--accent-secondary': '#0550ae',
+    '--accent-success': '#1a7f37',
+    '--border-color': '#d0d7de',
+    '--shadow': '0 2px 8px rgba(31, 35, 40, 0.15)'
+  }
+};
+
+let currentSettings = {
+  projectPath: '',
+  theme: 'vsCodeDark',
+  themeCategory: 'dark'
+};
 
 function getRecentProjects() {
   try {
@@ -85,6 +187,118 @@ function getFolderIcon(isExpanded) {
     return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181L14.65 8H2.826a2 2 0 0 0-1.991 1.819l-.637 7a1.99 1.99 0 0 1 .342-1.31zM1 8.5A1.5 1.5 0 0 1 2.5 7h11A1.5 1.5 0 0 1 15 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-5z"/></svg>';
   }
   return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19z"/></svg>';
+}
+
+function getThemeConfig(themeKey) {
+  return THEME_CATALOG.find(t => t.key === themeKey) || THEME_CATALOG.find(t => t.key === 'vsCodeDark');
+}
+
+function applyThemeToIDE(category) {
+  const palette = UI_PALETTES[category] || UI_PALETTES.dark;
+  const root = document.documentElement;
+  for (const [varName, value] of Object.entries(palette)) {
+    root.style.setProperty(varName, value);
+  }
+}
+
+function applyThemeToEditor(themeKey) {
+  const themeConfig = getThemeConfig(themeKey);
+  if (!themeConfig || !editorView) return;
+  editorView.dispatch({
+    effects: editorThemeCompartment.reconfigure(themeConfig.cm)
+  });
+}
+
+function updateWelcomeLogoByCategory(category) {
+  const logo = document.getElementById('welcomeLogo');
+  if (!logo) return;
+  const darkSrc = logo.getAttribute('data-dark-src') || 'logo-dark.png';
+  const lightSrc = logo.getAttribute('data-light-src') || 'logo.png';
+  logo.src = category === 'light' ? lightSrc : darkSrc;
+}
+
+function applyCurrentTheme() {
+  applyThemeToIDE(currentSettings.themeCategory);
+  updateWelcomeLogoByCategory(currentSettings.themeCategory);
+  applyThemeToEditor(currentSettings.theme);
+}
+
+function populateThemeSelect() {
+  const select = document.getElementById('themeSelect');
+  if (!select) return;
+  select.innerHTML = '';
+
+  const groups = {
+    dark: document.createElement('optgroup'),
+    light: document.createElement('optgroup')
+  };
+  groups.dark.label = 'Dark Themes';
+  groups.light.label = 'Light Themes';
+
+  for (const theme of THEME_CATALOG) {
+    const option = document.createElement('option');
+    option.value = theme.key;
+    option.textContent = theme.label;
+    groups[theme.category].appendChild(option);
+  }
+
+  select.appendChild(groups.dark);
+  select.appendChild(groups.light);
+  select.value = currentSettings.theme;
+}
+
+async function loadSettings() {
+  try {
+    const loaded = await window.api.readSettings();
+    const selectedTheme = getThemeConfig(loaded?.theme || 'vsCodeDark');
+    currentSettings = {
+      projectPath: loaded?.projectPath || '',
+      theme: selectedTheme.key,
+      themeCategory: selectedTheme.category
+    };
+  } catch (e) {
+    const fallbackTheme = getThemeConfig('vsCodeDark');
+    currentSettings = {
+      projectPath: '',
+      theme: fallbackTheme.key,
+      themeCategory: fallbackTheme.category
+    };
+  }
+
+  const projectPathInput = document.getElementById('projectPathInput');
+  if (projectPathInput) projectPathInput.value = currentSettings.projectPath;
+  populateThemeSelect();
+  applyCurrentTheme();
+}
+
+async function saveSettings() {
+  try {
+    await window.api.writeSettings(currentSettings);
+    alert('تم حفظ الإعدادات');
+  } catch (e) {
+    console.error('Failed saving settings:', e);
+    alert('تعذر حفظ الإعدادات');
+  }
+}
+
+async function chooseProjectPath() {
+  try {
+    const selectedPath = await window.api.selectProjectPath();
+    if (!selectedPath) return;
+    currentSettings.projectPath = selectedPath;
+    const projectPathInput = document.getElementById('projectPathInput');
+    if (projectPathInput) projectPathInput.value = selectedPath;
+  } catch (e) {
+    console.error('Failed selecting project path:', e);
+    alert('تعذر اختيار المسار');
+  }
+}
+
+function handleThemeSelection(themeKey) {
+  const selectedTheme = getThemeConfig(themeKey);
+  currentSettings.theme = selectedTheme.key;
+  currentSettings.themeCategory = selectedTheme.category;
+  applyCurrentTheme();
 }
 
 function getTabById(id) {
@@ -248,8 +462,6 @@ function initEditor() {
           direction: 'rtl'
         },
         '.cm-gutters': {
-          backgroundColor: '#1a1a1a',
-          borderLeft: '1px solid #333',
           borderRight: 'none',
           direction: 'ltr',
           minWidth: '40px'
@@ -267,7 +479,7 @@ function initEditor() {
           unicodeBidi: 'plaintext'
         }
       }),
-      oneDark,
+      editorThemeCompartment.of(getThemeConfig(currentSettings.theme).cm),
 
       // ── Daad language: tokenizer + highlighting + autocomplete ──────────
       // This single call replaces both python() and the separate
@@ -610,7 +822,7 @@ async function submitProjectName() {
   }
   hideProjectNameModal();
   try {
-    const folderPath = await window.api.createProjectFolder(projectName);
+    const folderPath = await window.api.createProjectFolder(projectName, currentSettings.projectPath);
     if (folderPath) {
       currentFolder = folderPath;
       await loadFileTree(folderPath);
@@ -834,6 +1046,12 @@ document.getElementById('closeTerminalBtn').addEventListener('click', () => {
   document.getElementById('terminalPanel').classList.add('hidden');
 });
 
+document.getElementById('projectPathBtn').addEventListener('click', chooseProjectPath);
+document.getElementById('themeSelect').addEventListener('change', (e) => {
+  handleThemeSelection(e.target.value);
+});
+document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
 document.getElementById('projectNameSubmit').addEventListener('click', submitProjectName);
 document.getElementById('projectNameCancel').addEventListener('click', hideProjectNameModal);
 document.getElementById('projectNameInput').addEventListener('keydown', (e) => {
@@ -906,9 +1124,15 @@ terminalInput.addEventListener('keydown', (e) => {
 });
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
+async function initApp() {
+  await loadSettings();
+  initEditor();
+  renderRecentProjects();
+  renderWelcomeRecents();
+  renderTabs();
+  ensureActiveView();
+}
 
-initEditor();
-renderRecentProjects();
-renderWelcomeRecents();
-renderTabs();
-ensureActiveView();
+initApp().catch((error) => {
+  console.error('Failed to initialize app:', error);
+});

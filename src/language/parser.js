@@ -41,7 +41,9 @@ const KEYWORDS = {
   // control flow — repeat / times
   'كرر':  'keyword',
   'مرات': 'keyword',
-
+  // from 
+  'من': 'keyword',
+  
   // import
   'إستورد': 'keyword',
   'استورد': 'keyword',
