@@ -9,7 +9,7 @@ import { syntaxHighlighting, HighlightStyle, bracketMatching } from "@codemirror
 import { tags as t } from "@lezer/highlight";
 
 import { daad } from "../language/language.js";
-import { THEME_CATALOG, UI_THEMES } from "../renderer/themes.js";
+import { THEME_CATALOG, UI_THEMES } from "./themes.js";
 import type { DADDElectroviewRPC, FileEntry, Settings } from "../shared/types";
 
 const rpc = Electroview.defineRPC<DADDElectroviewRPC>({
