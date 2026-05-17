@@ -1,20 +1,21 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { fileURLToPath, URL } from 'node:url';
+
+const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
-  root: 'src/renderer',
+  root: 'src/mainview',
   base: './',
-  publicDir: '../../img',
+  publicDir: fileURLToPath(new URL('./img', import.meta.url)),
   build: {
-    outDir: '../../dist/renderer',
+    outDir: '../../dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'src/renderer/index.html'),
-      },
-    },
   },
   server: {
     port: 5173,
+    strictPort: true,
+    fs: {
+      allow: [projectRoot],
+    },
   },
 });

@@ -484,15 +484,14 @@ body {
 }
 
 .btn-primary,
-.btn-secondary {6px;
+.btn-secondary {
   padding: 10px 12px;
   font-family: var(--font-arabic);
   font-size: 12px;
   cursor: pointer;
   border: 1px solid transparent;
   width: 100%;
-  transition: all var(--transition)
-  border: 1px solid transparent;
+  transition: all var(--transition);
 }
 
 .btn-primary {

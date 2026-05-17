@@ -1,0 +1,42 @@
+@import "../renderer/styles.css";
+
+.header-title {
+	font-weight: 700;
+	letter-spacing: 0.2px;
+}
+
+.btn-header.icon,
+.btn-run,
+.btn-tab-action,
+.btn-primary,
+.btn-secondary,
+.btn-terminal,
+.btn-close {
+	transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-header.icon:hover,
+.btn-tab-action:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-terminal:hover,
+.btn-close:hover {
+	transform: translateY(-1px);
+}
+
+.welcome-logo {
+	max-width: 110px;
+	height: auto;
+	margin: 0 auto 14px;
+	display: block;
+}
+
+.settings-pane,
+.welcome-view,
+.editor-pane {
+	height: 100%;
+}
+
+.cm-editor {
+	height: 100%;
+}

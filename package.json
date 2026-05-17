@@ -2,18 +2,18 @@
   "name": "daad-ide",
   "version": "0.0.1",
   "description": "Minimal IDE for ض (Ḍād) Arabic Programming Language",
-  "main": "src/main/main.js",
+  "type": "module",
+  "main": "src/bun/index.ts",
   "scripts": {
-    "dev:renderer": "vite",
-    "dev:electron": "wait-on tcp:5173 && electronmon .",
-    "dev": "concurrently \"yarn dev:renderer\" \"yarn dev:electron\"",
-    "build:renderer": "vite build",
-    "build": "yarn build:renderer && electron-builder",
-    "release": "yarn build:renderer && electron-builder --publish always",
-    "start": "electron ."
+    "start": "vite build && bunx electrobun dev",
+    "dev": "bunx electrobun dev --watch",
+    "dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
+    "hmr": "vite --port 5173",
+    "build:canary": "vite build && bunx electrobun build --env=canary"
   },
   "keywords": [
-    "electron",
+    "electrobun",
+    "bun",
     "ide",
     "arabic",
     "daad"
@@ -21,12 +21,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/bun": "latest",
     "concurrently": "^9.2.1",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
-    "electronmon": "^2.0.4",
-    "vite": "^7.3.1",
-    "wait-on": "^9.0.3"
+    "typescript": "^5.7.2",
+    "vite": "^7.3.1"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.12.0",
@@ -41,29 +39,7 @@
     "@lezer/highlight": "^1.2.0",
     "@lezer/lr": "^1.4.0",
     "codemirror": "^6.0.1",
+    "electrobun": "1.18.1",
     "file-icons-js": "^1.1.0"
-  },
-  "build": {
-    "appId": "com.daad.ide",
-    "productName": "Ḍād_IDE",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "src/main/**/*",
-      "dist/renderer/**/*",
-      "package.json"
-    ],
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "category": "Development"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "daadLang",
-      "repo": "d-editor"
-    }
   }
 }

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; object-src 'none'"> -->
+	<title>Ḍād IDE</title>
+  <script type="module" crossorigin src="./assets/index-DIwk8iLk.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-nyFLBRmv.css">
+</head>
+<body>
+	<div id="app">
+		<header class="header">
+			<div class="header-title">Ḍād IDE</div>
+			<div class="header-actions">
+				<button id="toggleSidebarBtn" class="btn-header icon" title="إظهار/إخفاء المستكشف (Ctrl+B)" aria-pressed="true">☰</button>
+				<button id="runBtn" class="btn-header btn-run" title="تشغيل (F5)">▶</button>
+			</div>
+		</header>
+
+		<div class="main-content">
+			<aside class="sidebar">
+				<div class="sidebar-header">
+					<div class="sidebar-header-title">المستكشف</div>
+					<div class="sidebar-header-actions">
+						<button id="openFolderBtn" class="btn-header small" title="فتح مجلد">فتح</button>
+					</div>
+				</div>
+				<div id="fileTree" class="file-tree">
+					<div class="empty-state">افتح مجلدًا للبدء</div>
+				</div>
+			</aside>
+
+			<main class="editor-container">
+				<div class="tabs-bar">
+					<div id="tabs" class="tabs"></div>
+					<div class="tabs-actions">
+						<button id="openSettingsTabBtn" class="btn-tab-action" title="الإعدادات">⚙</button>
+						<button id="saveBtn" class="btn-tab-action" title="حفظ (Ctrl+S)" disabled>💾</button>
+						<button id="closeAllTabsBtn" class="btn-tab-action" title="إغلاق كل التبويبات" disabled>✕</button>
+					</div>
+				</div>
+				<div class="editor-body">
+					<div id="welcome" class="welcome-view">
+						<div class="welcome-content">
+							<img id="welcomeLogo" class="welcome-logo" src="./logo-dark.png" data-dark-src="/logo-dark.png" data-light-src="/logo.png" alt="Ḍād logo">
+							<div class="welcome-grid">
+								<div class="welcome-section welcome-start">
+									<div class="welcome-section-title">ابدأ</div>
+									<button id="welcomeOpenFolderBtn" class="btn-primary">فتح مشروع...</button>
+									<button id="welcomeSettingsBtn" class="btn-secondary">الإعدادات</button>
+								</div>
+								<div class="welcome-section welcome-recents-section">
+									<div class="welcome-section-title">مشاريع أخيرة</div>
+									<div id="welcomeRecents" class="welcome-recents"></div>
+								</div>
+								<div class="welcome-section welcome-shortcuts">
+									<div class="welcome-section-title">اختصارات</div>
+									<div class="shortcut-list">
+										<div class="shortcut-item"><span>الإعدادات</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">P</span></span></div>
+										<div class="shortcut-item"><span>إظهار المستكشف</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">B</span></span></div>
+										<div class="shortcut-item"><span>نافذة الإخراج</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">`</span></span></div>
+										<div class="shortcut-item"><span>حفظ</span><span class="key-group"><span class="key-badge">Ctrl</span><span class="key-sep">+</span><span class="key-badge">S</span></span></div>
+										<div class="shortcut-item"><span>تشغيل</span><span class="key-group"><span class="key-badge">F5</span></span></div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id="editor" class="editor-pane"></div>
+					<div id="settingsPane" class="settings-pane view-hidden">
+						<div class="settings-container">
+							<div class="settings-title">الإعدادات</div>
+							<div class="settings-description">إعدادات عامة للمشروع والمظهر.</div>
+							<div class="settings-group">
+								<label class="settings-label" for="projectPathInput">المسار الافتراضي لإنشاء المشاريع</label>
+								<div class="settings-row">
+									<input id="projectPathInput" class="settings-input" type="text" readonly>
+									<button id="projectPathBtn" class="btn-secondary" type="button">اختيار...</button>
+								</div>
+							</div>
+							<div class="settings-group">
+								<label class="settings-label" for="themeSelect">المظهر</label>
+								<select id="themeSelect" class="settings-select"></select>
+							</div>
+							<div class="settings-actions">
+								<button id="saveSettingsBtn" class="btn-primary" type="button">حفظ الإعدادات</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<div id="terminalPanel" class="terminal-panel hidden">
+			<div class="terminal-header">
+				<span>نافذة الإخراج</span>
+				<button id="closeTerminalBtn" class="btn-close">×</button>
+			</div>
+			<div id="terminalOutput" class="terminal-output"></div>
+			<div class="terminal-input-row">
+				<input id="terminalInput" class="terminal-input" placeholder="أدخل نصًا للإرسال إلى stdin...">
+				<button id="sendStdinBtn" class="btn-terminal">إرسال</button>
+			</div>
+		</div>
+
+		<div id="projectNameModal" class="modal hidden">
+			<div class="modal-overlay"></div>
+			<div class="modal-content">
+				<div class="modal-header"><h2>إنشاء مشروع جديد</h2></div>
+				<div class="modal-body">
+					<label for="projectNameInput">اسم المشروع:</label>
+					<input id="projectNameInput" type="text" class="modal-input" placeholder="أدخل اسم المشروع...">
+				</div>
+				<div class="modal-footer">
+					<button id="projectNameCancel" class="btn-secondary">إلغاء</button>
+					<button id="projectNameSubmit" class="btn-primary">إنشاء</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
