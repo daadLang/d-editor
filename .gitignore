@@ -10,3 +10,7 @@ npm-debug.log*
 *.swo
 *~
 release
+build/*
+!build/
+!build/appicon.png
+frontend/wailsjs/

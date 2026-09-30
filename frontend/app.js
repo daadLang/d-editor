@@ -34,7 +34,8 @@ import {
   vsCodeDark,
   vsCodeLight
 } from '@fsegurai/codemirror-theme-bundle';
-import { daad } from '../language/language.js';
+import { daad } from './language/language.js';
+import { api } from './wails-api.js';
 
 // State
 let currentFile = null;
@@ -197,7 +198,7 @@ function populateThemeSelect() {
 
 async function loadSettings() {
   try {
-    const loaded = await window.api.readSettings();
+    const loaded = await api.readSettings();
     const selectedTheme = getThemeConfig(loaded?.theme || 'vsCodeDark');
     currentSettings = {
       projectPath: loaded?.projectPath || '',
@@ -221,7 +222,7 @@ async function loadSettings() {
 
 async function saveSettings() {
   try {
-    await window.api.writeSettings(currentSettings);
+    await api.writeSettings(currentSettings);
     alert('تم حفظ الإعدادات');
   } catch (e) {
     console.error('Failed saving settings:', e);
@@ -231,7 +232,7 @@ async function saveSettings() {
 
 async function chooseProjectPath() {
   try {
-    const selectedPath = await window.api.selectProjectPath();
+    const selectedPath = await api.selectProjectPath();
     if (!selectedPath) return;
     currentSettings.projectPath = selectedPath;
     const projectPathInput = document.getElementById('projectPathInput');
@@ -677,7 +678,7 @@ async function saveTab(tab) {
   const content = tab.id === activeTabId && editorView
     ? editorView.state.doc.toString()
     : (tab.doc || '');
-  await window.api.writeFile(tab.path, content);
+  await api.writeFile(tab.path, content);
   tab.doc = content;
   tab.isDirty = false;
   if (tab.id === activeTabId) {
@@ -735,7 +736,7 @@ async function closeAllTabs() {
 
 async function openFolder() {
   try {
-    const folderPath = await window.api.openFolderDialog();
+    const folderPath = await api.openFolderDialog();
     if (folderPath) {
       currentFolder = folderPath;
       await loadFileTree(folderPath);
@@ -770,7 +771,7 @@ async function submitProjectName() {
   }
   hideProjectNameModal();
   try {
-    const folderPath = await window.api.createProjectFolder(projectName, currentSettings.projectPath);
+    const folderPath = await api.createProjectFolder(projectName, currentSettings.projectPath);
     if (folderPath) {
       currentFolder = folderPath;
       await loadFileTree(folderPath);
@@ -790,7 +791,7 @@ function createNewProject() {
 
 async function loadFileTree(dirPath) {
   try {
-    const entries = await window.api.readDirectory(dirPath);
+    const entries = await api.readDirectory(dirPath);
     const treeElement = document.getElementById('fileTree');
     treeElement.innerHTML = '';
     fileTree = {};
@@ -818,7 +819,7 @@ async function loadFileTree(dirPath) {
 async function loadDirectoryRecursive(dirPath, parentWrapper, depth = 0) {
   if (depth > 2) return;
   try {
-    const entries = await window.api.readDirectory(dirPath);
+    const entries = await api.readDirectory(dirPath);
     const childContainer = document.createElement('div');
     childContainer.className = 'tree-children';
     childContainer.style.display = 'none';
@@ -899,7 +900,7 @@ async function openFile(filePath) {
       if (shouldSave) await saveCurrentFile();
     }
 
-    const content = await window.api.readFile(filePath);
+    const content = await api.readFile(filePath);
     const name = filePath.split('/').pop();
 
     const newTab = {
@@ -924,7 +925,7 @@ async function saveCurrentFile() {
   if (!activeTab || activeTab.type !== 'file' || !currentFile) return;
   try {
     const content = editorView.state.doc.toString();
-    await window.api.writeFile(currentFile, content);
+    await api.writeFile(currentFile, content);
     activeTab.doc = content;
     activeTab.isDirty = false;
     isModified = false;
@@ -955,7 +956,7 @@ async function runCurrentFile() {
 
   try {
     if (!daadOutputUnsub) {
-      daadOutputUnsub = window.api.onDaadOutput((data) => {
+      daadOutputUnsub = api.onDaadOutput((data) => {
         const line = document.createElement('div');
         line.className = `terminal-line terminal-${data.type}`;
         line.textContent = data.data;
@@ -964,7 +965,7 @@ async function runCurrentFile() {
       });
     }
 
-    const result = await window.api.runDaad(currentFile);
+    const result = await api.runDaad(currentFile);
 
     const completionLine = document.createElement('div');
     completionLine.className = 'terminal-line terminal-stdout';
@@ -1042,7 +1043,7 @@ async function sendStdin() {
   output.scrollTop = output.scrollHeight;
 
   try {
-    await window.api.writeToDaadStdin(val + '\n');
+    await api.writeToDaadStdin(val + '\n');
   } catch (err) {
     console.warn('writeToDaadStdin failed:', err);
   }
@@ -1052,7 +1053,7 @@ async function sendStdin() {
 async function endStdin() {
   const output = document.getElementById('terminalOutput');
   try {
-    const ok = await window.api.endDaadStdin();
+    const ok = await api.endDaadStdin();
     if (ok) {
       const line = document.createElement('div');
       line.className = 'terminal-line terminal-stdin';

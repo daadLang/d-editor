@@ -2,15 +2,15 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  root: 'src/renderer',
+  root: 'frontend',
   base: './',
-  publicDir: '../../img',
+  publicDir: 'assets',
   build: {
-    outDir: '../../dist/renderer',
+    outDir: '../dist/renderer',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'src/renderer/index.html'),
+        main: resolve(__dirname, 'frontend/index.html'),
       },
     },
   },
