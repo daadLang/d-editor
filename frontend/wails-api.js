@@ -18,7 +18,14 @@ export const api = {
   selectProjectPath: () => getApp().SelectProjectPath(),
   readSettings: () => getApp().ReadSettings(),
   writeSettings: (settings) => getApp().WriteSettings(settings),
-  runDaad: (filePath) => getApp().RunDaad(filePath),
+  getInterpreterInfo: (configuredPath) => getApp().GetInterpreterInfo(configuredPath),
+  listInterpreters: (configuredPath) => getApp().ListInterpreters(configuredPath),
+  interpreterDirectory: () => getApp().InterpreterDirectory(),
+  selectInterpreter: () => getApp().SelectInterpreter(),
+  installLatestInterpreter: () => getApp().InstallLatestInterpreter(),
+  installInterpreter: (releaseTag) => getApp().InstallInterpreter(releaseTag),
+  openExternalUrl: (url) => getApp().OpenExternalURL(url),
+  runDaad: (filePath, interpreterPath) => getApp().RunDaad(filePath, interpreterPath),
   onDaadOutput: (callback) => {
     const runtime = globalThis.runtime;
     if (!runtime?.EventsOn) {

@@ -155,8 +155,12 @@ func (a *App) WriteSettings(settings map[string]string) error {
 	return os.WriteFile(path, content, 0644)
 }
 
-func (a *App) RunDaad(filePath string) (map[string]interface{}, error) {
-	cmd := exec.Command("daad", filePath)
+func (a *App) RunDaad(filePath, interpreterPath string) (map[string]interface{}, error) {
+	interpreter, err := resolveInterpreter(interpreterPath)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(interpreter, filePath)
 	cmd.Dir = filepath.Dir(filePath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

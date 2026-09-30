@@ -115,6 +115,27 @@
                 <select id="themeSelect" class="settings-select"></select>
               </div>
 
+              <div class="settings-group interpreter-settings">
+                <div class="settings-label-row">
+                  <label class="settings-label" for="interpreterSelect">مفسر ضاد</label>
+                  <button id="refreshInterpreterBtn" class="btn-icon" type="button" title="التحقق من الإصدار" aria-label="التحقق من الإصدار">↻</button>
+                </div>
+                <div id="interpreterStatus" class="settings-status" data-state="missing">جارٍ فحص المفسر...</div>
+                <select id="interpreterSelect" class="settings-select" aria-label="اختيار مفسر ضاد">
+                  <option value="">جارٍ تحميل المفسرات...</option>
+                </select>
+                <div class="settings-row">
+                  <input id="interpreterPathInput" class="settings-input" type="text" readonly placeholder="لم يتم اختيار مفسر">
+                  <button id="selectInterpreterBtn" class="btn-secondary settings-action" type="button">اختيار ملف...</button>
+                </div>
+                <div class="interpreter-release">
+                  <span id="interpreterVersion">غير معروف</span>
+                  <button id="interpreterRelease" class="link-button" type="button">جارٍ التحقق من أحدث إصدار...</button>
+                </div>
+                <button id="installInterpreterBtn" class="btn-secondary" type="button">تثبيت المحدد</button>
+                <p class="settings-help">اختر مفسرًا مثبتًا أو إصدارًا مقترحًا لتنزيله من مستودع ضاد الرسمي.</p>
+              </div>
+
               <div class="settings-actions">
                 <button id="saveSettingsBtn" class="btn-primary" type="button">حفظ الإعدادات</button>
               </div>

@@ -36,119 +36,42 @@ import {
 } from '@fsegurai/codemirror-theme-bundle';
 import { daad } from './language/language.js';
 import { api } from './wails-api.js';
+import {
+  applyThemeToIDE,
+  getThemeConfig,
+  populateThemeSelect,
+  updateWelcomeLogoByCategory
+} from './ui/theme-manager.js';
+import { createInterpreterController } from './features/interpreter.js';
+import { createProjectExplorer } from './features/project-explorer.js';
 
 // State
 let currentFile = null;
 let currentFolder = null;
 let editorView = null;
-let fileTree = {};
 let isModified = false;
 let daadOutputUnsub = null;
 let openTabs = [];
 let activeTabId = null;
 let suppressDocChange = false;
-
-// Recent projects (stored in localStorage)
-const RECENTS_KEY = 'recentProjects';
+let projectExplorer;
 
 // Editor theme compartment for runtime switching
 const editorThemeCompartment = new Compartment();
-import { THEME_CATALOG, UI_THEMES } from './themes.js';
 
 
 let currentSettings = {
   projectPath: '',
   theme: 'vsCodeDark',
-  themeCategory: 'dark'
+  themeCategory: 'dark',
+  interpreterPath: ''
 };
 
-function getRecentProjects() {
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveRecentProjects(list) {
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, 5)));
-  } catch (e) {
-    // ignore
-  }
-}
-
-function addRecentProject(p) {
-  if (!p) return;
-  const list = getRecentProjects().filter(x => x !== p);
-  list.unshift(p);
-  saveRecentProjects(list);
-}
-
-function renderRecentProjects() {
-  const treeElement = document.getElementById('fileTree');
-  if (!treeElement) return;
-  
-  treeElement.innerHTML = '';
-  const container = document.createElement('div');
-  container.className = 'recent-projects';
-
-  const buttonsRow = document.createElement('div');
-  buttonsRow.style.display = 'flex';
-  buttonsRow.style.flexDirection = 'column';
-  buttonsRow.style.gap = '8px';
-  buttonsRow.style.padding = '12px 8px';
-
-  const openBtn = document.createElement('button');
-  openBtn.className = 'btn-header open-project-btn';
-  openBtn.textContent = 'فتح مشروع...';
-  openBtn.addEventListener('click', async () => {
-    await openFolder();
-  });
-
-  const createBtn = document.createElement('button');
-  createBtn.className = 'btn-header open-project-btn';
-  createBtn.textContent = 'إنشاء مشروع جديد...';
-  createBtn.addEventListener('click', async () => {
-    await createNewProject();
-  });
-
-  buttonsRow.appendChild(openBtn);
-  buttonsRow.appendChild(createBtn);
-  container.appendChild(buttonsRow);
-  treeElement.appendChild(container);
-}
-
-function getFolderIcon(isExpanded) {
-  if (isExpanded) {
-    return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181L14.65 8H2.826a2 2 0 0 0-1.991 1.819l-.637 7a1.99 1.99 0 0 1 .342-1.31zM1 8.5A1.5 1.5 0 0 1 2.5 7h11A1.5 1.5 0 0 1 15 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-5z"/></svg>';
-  }
-  return '<svg class="tree-item-icon" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19z"/></svg>';
-}
-
-function getThemeConfig(themeKey) {
-  return THEME_CATALOG.find(t => t.key === themeKey) || THEME_CATALOG.find(t => t.key === 'vsCodeDark');
-}
-
-function applyThemeToIDE(themeKey) {
-  const palette = UI_THEMES[themeKey] || UI_THEMES.vsCodeDark;
-  const root = document.documentElement;
-  root.style.setProperty('--bg-primary', palette.bg);
-  root.style.setProperty('--bg-secondary', palette.bg2);
-  root.style.setProperty('--bg-tertiary', palette.bg3);
-  root.style.setProperty('--bg-hover', palette.hover);
-  root.style.setProperty('--text-primary', palette.text);
-  root.style.setProperty('--text-secondary', palette.text2);
-  root.style.setProperty('--text-tertiary', palette.text3);
-  root.style.setProperty('--accent-primary', palette.accent);
-  root.style.setProperty('--accent-secondary', palette.accent2);
-  root.style.setProperty('--accent-success', palette.success);
-  root.style.setProperty('--border-color', palette.border);
-  root.style.setProperty('--shadow', palette.shadow);
-}
+const interpreterController = createInterpreterController({
+  api,
+  getSettings: () => currentSettings,
+  onSettingsChanged: () => saveSettings()
+});
 
 function applyThemeToEditor(themeKey) {
   const themeConfig = getThemeConfig(themeKey);
@@ -158,42 +81,10 @@ function applyThemeToEditor(themeKey) {
   });
 }
 
-function updateWelcomeLogoByCategory(category) {
-  const logo = document.getElementById('welcomeLogo');
-  if (!logo) return;
-  const darkSrc = logo.getAttribute('data-dark-src') || 'logo-dark.png';
-  const lightSrc = logo.getAttribute('data-light-src') || 'logo.png';
-  logo.src = category === 'light' ? lightSrc : darkSrc;
-}
-
 function applyCurrentTheme() {
   applyThemeToIDE(currentSettings.theme);
   updateWelcomeLogoByCategory(currentSettings.themeCategory);
   applyThemeToEditor(currentSettings.theme);
-}
-
-function populateThemeSelect() {
-  const select = document.getElementById('themeSelect');
-  if (!select) return;
-  select.innerHTML = '';
-
-  const groups = {
-    dark: document.createElement('optgroup'),
-    light: document.createElement('optgroup')
-  };
-  groups.dark.label = 'Dark Themes';
-  groups.light.label = 'Light Themes';
-
-  for (const theme of THEME_CATALOG) {
-    const option = document.createElement('option');
-    option.value = theme.key;
-    option.textContent = theme.label;
-    groups[theme.category].appendChild(option);
-  }
-
-  select.appendChild(groups.dark);
-  select.appendChild(groups.light);
-  select.value = currentSettings.theme;
 }
 
 async function loadSettings() {
@@ -203,20 +94,22 @@ async function loadSettings() {
     currentSettings = {
       projectPath: loaded?.projectPath || '',
       theme: selectedTheme.key,
-      themeCategory: selectedTheme.category
+      themeCategory: selectedTheme.category,
+      interpreterPath: loaded?.interpreterPath || ''
     };
   } catch (e) {
     const fallbackTheme = getThemeConfig('vsCodeDark');
     currentSettings = {
       projectPath: '',
       theme: fallbackTheme.key,
-      themeCategory: fallbackTheme.category
+      themeCategory: fallbackTheme.category,
+      interpreterPath: ''
     };
   }
 
   const projectPathInput = document.getElementById('projectPathInput');
   if (projectPathInput) projectPathInput.value = currentSettings.projectPath;
-  populateThemeSelect();
+  populateThemeSelect(currentSettings.theme);
   applyCurrentTheme();
 }
 
@@ -328,41 +221,6 @@ function showSettingsView() {
   if (welcome) welcome.classList.add('view-hidden');
   if (editor) editor.classList.add('view-hidden');
   if (settingsPane) settingsPane.classList.remove('view-hidden');
-}
-
-function renderWelcomeRecents() {
-  const recentsEl = document.getElementById('welcomeRecents');
-  if (!recentsEl) return;
-  const recents = getRecentProjects();
-  recentsEl.innerHTML = '';
-
-  if (!recents || recents.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'welcome-empty';
-    empty.textContent = 'لا توجد مشاريع سابقة بعد.';
-    recentsEl.appendChild(empty);
-    return;
-  }
-
-  for (const p of recents.slice(0, 5)) {
-    const item = document.createElement('div');
-    item.className = 'welcome-recent';
-    const name = p.split('/').pop();
-    item.innerHTML = `<div class="name">${name}</div><div class="path">${p}</div>`;
-    item.title = p;
-    item.addEventListener('click', async () => {
-      try {
-        currentFolder = p;
-        await loadFileTree(p);
-        addRecentProject(p);
-        renderWelcomeRecents();
-      } catch (err) {
-        console.error('Failed opening recent project:', err);
-        alert('فشل فتح المشروع: ' + err.message);
-      }
-    });
-    recentsEl.appendChild(item);
-  }
 }
 
 function updateWelcomeMode() {
@@ -739,9 +597,8 @@ async function openFolder() {
     const folderPath = await api.openFolderDialog();
     if (folderPath) {
       currentFolder = folderPath;
-      await loadFileTree(folderPath);
-      addRecentProject(folderPath);
-      renderWelcomeRecents();
+      await projectExplorer.loadFileTree(folderPath);
+      projectExplorer.renderWelcomeRecents();
       updateWelcomeMode();
     }
   } catch (error) {
@@ -774,9 +631,8 @@ async function submitProjectName() {
     const folderPath = await api.createProjectFolder(projectName, currentSettings.projectPath);
     if (folderPath) {
       currentFolder = folderPath;
-      await loadFileTree(folderPath);
-      addRecentProject(folderPath);
-      renderWelcomeRecents();
+      await projectExplorer.loadFileTree(folderPath);
+      projectExplorer.renderWelcomeRecents();
       updateWelcomeMode();
     }
   } catch (error) {
@@ -787,103 +643,6 @@ async function submitProjectName() {
 
 function createNewProject() {
   showProjectNameModal();
-}
-
-async function loadFileTree(dirPath) {
-  try {
-    const entries = await api.readDirectory(dirPath);
-    const treeElement = document.getElementById('fileTree');
-    treeElement.innerHTML = '';
-    fileTree = {};
-
-    entries.sort((a, b) => {
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      return a.name.localeCompare(b.name, 'ar');
-    });
-
-    for (const entry of entries) {
-      if (entry.name.startsWith('.')) continue;
-      const { wrapper } = createTreeItem(entry);
-      treeElement.appendChild(wrapper);
-      if (entry.isDirectory) {
-        await loadDirectoryRecursive(entry.path, wrapper);
-      }
-    }
-    updateWelcomeMode();
-  } catch (error) {
-    console.error('Failed to load file tree:', error);
-  }
-}
-
-async function loadDirectoryRecursive(dirPath, parentWrapper, depth = 0) {
-  if (depth > 2) return;
-  try {
-    const entries = await api.readDirectory(dirPath);
-    const childContainer = document.createElement('div');
-    childContainer.className = 'tree-children';
-    childContainer.style.display = 'none';
-
-    entries.sort((a, b) => {
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      return a.name.localeCompare(b.name, 'ar');
-    });
-
-    for (const entry of entries) {
-      if (entry.name.startsWith('.')) continue;
-      const { wrapper } = createTreeItem(entry);
-      childContainer.appendChild(wrapper);
-      if (entry.isDirectory) {
-        await loadDirectoryRecursive(entry.path, wrapper, depth + 1);
-      }
-    }
-
-    if (childContainer.children.length > 0) {
-      parentWrapper.appendChild(childContainer);
-      const parentItem = parentWrapper.querySelector(':scope > .tree-item');
-      if (parentItem) {
-        parentItem.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isExpanded = childContainer.style.display !== 'none';
-          childContainer.style.display = isExpanded ? 'none' : 'block';
-          parentItem.classList.toggle('expanded', !isExpanded);
-          const iconSvg = parentItem.querySelector('.tree-item-icon');
-          if (iconSvg) iconSvg.outerHTML = getFolderIcon(!isExpanded);
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load directory:', error);
-  }
-}
-
-function createTreeItem(entry) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'tree-entry';
-  wrapper.dataset.path = entry.path;
-
-  const item = document.createElement('div');
-  item.className = 'tree-item';
-
-  if (entry.isDirectory) {
-    item.classList.add('directory');
-    item.innerHTML = `${getFolderIcon(false)}<span>${entry.name}</span>`;
-  } else {
-    item.innerHTML = `
-      <svg class="tree-item-icon file-icon" fill="#777777" viewBox="0 0 24 24">
-        <path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm8 1v5h5M8 11h8v2H8v-2zm0 4h8v2H8v-2z"/>
-      </svg>
-      <span>${entry.name}</span>
-    `;
-    item.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await openFile(entry.path);
-    });
-  }
-
-  wrapper.appendChild(item);
-  return { wrapper, item };
 }
 
 async function openFile(filePath) {
@@ -965,7 +724,7 @@ async function runCurrentFile() {
       });
     }
 
-    const result = await api.runDaad(currentFile);
+    const result = await api.runDaad(currentFile, currentSettings.interpreterPath);
 
     const completionLine = document.createElement('div');
     completionLine.className = 'terminal-line terminal-stdout';
@@ -1075,12 +834,24 @@ terminalInput.addEventListener('keydown', (e) => {
 // ── Boot ─────────────────────────────────────────────────────────────────────
 async function initApp() {
   await loadSettings();
+  await interpreterController.refresh();
   initEditor();
-  renderRecentProjects();
-  renderWelcomeRecents();
+  projectExplorer.renderRecentProjects(openFolder, createNewProject);
+  projectExplorer.renderWelcomeRecents();
   renderTabs();
   ensureActiveView();
 }
+
+projectExplorer = createProjectExplorer({
+  api,
+  onOpenFile: openFile,
+  onOpenProject: async projectPath => {
+    currentFolder = projectPath;
+    await projectExplorer.loadFileTree(projectPath);
+    projectExplorer.renderWelcomeRecents();
+    updateWelcomeMode();
+  }
+});
 
 initApp().catch((error) => {
   console.error('Failed to initialize app:', error);
