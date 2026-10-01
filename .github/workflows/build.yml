@@ -56,9 +56,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          node-version: '26'
+          cache: 'yarn'
+          cache-dependency-path: 'yarn.lock'
 
       # Install Linux toolchain & WebKit headers for cross-compiling
       - name: Install Linux Build Dependencies
