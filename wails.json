@@ -1,0 +1,11 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "daad-ide",
+  "outputfilename": "daad-ide",
+  "build:tags": "webkit2_41",
+  "frontend:dir": "frontend",
+  "frontend:install": "yarn install",
+  "frontend:build": "yarn build:frontend",
+  "frontend:dev:watcher": "yarn dev:frontend",
+  "frontend:dev:serverUrl": "auto"
+}
