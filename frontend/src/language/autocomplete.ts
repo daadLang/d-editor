@@ -38,7 +38,9 @@ export const daadKeywords: Completion[] = [
   { label: "أخرج", type: "keyword", info: "break", boost: 1 },
   { label: "اخرج", type: "keyword", info: "break", apply: "أخرج" },
   { label: "تابع", type: "keyword", info: "continue" },
-
+  
+  { label: "صنف", type: "keyword", info: "class" },
+  
   // booleans and logic
   { label: "صحيح", type: "keyword", info: "True" },
   { label: "خطأ", type: "keyword", info: "False" },

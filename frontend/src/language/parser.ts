@@ -31,6 +31,7 @@ const KEYWORDS: Record<string, string> = {
   "دالة": "keyword",
   "أخرج": "keyword", "اخرج": "keyword",
   "تابع": "keyword",
+  "صنف": "keyword",
   // booleans
   "صحيح": "atom", "خطأ": "atom", "خطا": "atom",
   // logical operators
