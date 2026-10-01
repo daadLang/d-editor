@@ -1,0 +1,179 @@
+@import "tailwindcss" source(".");
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-success: var(--success);
+}
+
+/*
+ * Fallback tokens. At runtime the selected IDE theme overrides all of these
+ * (see src/lib/theme-store.ts), so the file only has to look right until the
+ * first theme is applied.
+ */
+:root {
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #1f1f1f;
+  --card: #f3f3f3;
+  --card-foreground: #1f1f1f;
+  --popover: #f3f3f3;
+  --popover-foreground: #1f1f1f;
+  --primary: #007acc;
+  --primary-foreground: #fafafa;
+  --secondary: #e8eef5;
+  --secondary-foreground: #1f1f1f;
+  --muted: #e8eef5;
+  --muted-foreground: #4f4f4f;
+  --accent: #dce4ed;
+  --accent-foreground: #1f1f1f;
+  --destructive: #dc2626;
+  --border: #d0d7de;
+  --input: #d0d7de;
+  --ring: #007acc;
+  --chart-1: #007acc;
+  --chart-2: #005a9e;
+  --chart-3: #22863a;
+  --chart-4: #4f4f4f;
+  --chart-5: #707070;
+  --sidebar: #f3f3f3;
+  --sidebar-foreground: #1f1f1f;
+  --sidebar-primary: #007acc;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #dce4ed;
+  --sidebar-accent-foreground: #1f1f1f;
+  --sidebar-border: #d0d7de;
+  --sidebar-ring: #007acc;
+  --success: #22863a;
+}
+
+.dark {
+  --background: #1e1e1e;
+  --foreground: #d4d4d4;
+  --card: #252526;
+  --card-foreground: #d4d4d4;
+  --popover: #252526;
+  --popover-foreground: #d4d4d4;
+  --primary: #007acc;
+  --primary-foreground: #fafafa;
+  --secondary: #2d2d30;
+  --secondary-foreground: #d4d4d4;
+  --muted: #2d2d30;
+  --muted-foreground: #b3b3b3;
+  --accent: #3c3c3c;
+  --accent-foreground: #d4d4d4;
+  --destructive: #ef4444;
+  --border: #3c3c3c;
+  --input: #3c3c3c;
+  --ring: #007acc;
+  --sidebar: #252526;
+  --sidebar-foreground: #d4d4d4;
+  --sidebar-primary: #007acc;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #3c3c3c;
+  --sidebar-accent-foreground: #d4d4d4;
+  --sidebar-border: #3c3c3c;
+  --sidebar-ring: #007acc;
+  --success: #6a9955;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full overflow-hidden;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    /* This is an app, not a web page: chrome is not selectable… */
+    @apply select-none;
+  }
+
+  /* …but code, output and form fields are. */
+  input,
+  textarea,
+  pre,
+  .cm-editor {
+    @apply select-text;
+  }
+
+  /* Keyboard hints and file names are mixed-direction text; let the browser
+     pick the direction per line instead of inheriting RTL blindly. */
+  .bidi-plaintext {
+    unicode-bidi: plaintext;
+  }
+
+  /* File names: an isolated LTR run keeps "مثال.daad" in reading order
+     (an RTL base direction would flip the extension to the wrong side). */
+  .filename {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+}
+
+/* ── CodeMirror ─────────────────────────────────────────────────────────── */
+.cm-editor {
+  height: 100%;
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-scroller {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.7;
+}

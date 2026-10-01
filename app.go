@@ -106,7 +106,7 @@ func (a *App) CreateProjectFolder(projectName, basePath string) (string, error) 
 		return "", fmt.Errorf("failed to create project: %w", err)
 	}
 	content := "دالة جمع(أ, ب) -> عدد:\n    ارجع أ + ب\n\nنتيجة = جمع(5, 10)\n\nاطبع(نتيجة)\n"
-	if err := os.WriteFile(filepath.Join(projectPath, "main.daad"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projectPath, "رئيسي.ض"), []byte(content), 0644); err != nil {
 		return "", fmt.Errorf("failed to create project file: %w", err)
 	}
 	return projectPath, nil
