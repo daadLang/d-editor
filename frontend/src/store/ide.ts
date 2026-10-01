@@ -390,7 +390,7 @@ export async function runActive() {
   if (tab.dirty && !(await saveTab(tab.id))) return
 
   set({ output: { open: true, running: true, exitCode: null, segments: [] } })
-  appendOutput("info", `جارٍ تشغيل ${tab.title}…\n`)
+  appendOutput("info", ` تشغيل ${tab.title}…\n`)
 
   try {
     const result = await api.runDaad(tab.path, get().settings.interpreterPath)
