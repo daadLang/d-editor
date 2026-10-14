@@ -3,6 +3,7 @@ import type {
   DaadOutputEvent,
   EventsApi,
   InterpreterOption,
+  InterpreterStatus,
 } from "@/lib/wails"
 
 /** In-memory stand-in for the Go backend, used only when Wails is absent. */
@@ -20,36 +21,42 @@ export function createMockBackend() {
   ])
   let settings: Record<string, string> = {
     projectPath: "/home/demo/Documents",
-    theme: "vsCodeDark",
+    theme: "",
     themeCategory: "dark",
     interpreterPath: "",
   }
   let running = false
 
+  // Starts with nothing selected and nothing on PATH, so the browser preview
+  // exercises the "no interpreter" call to action.
   const interpreters: InterpreterOption[] = [
     {
-      id: "installed:/usr/bin/daad",
-      label: "Daad (system)",
-      path: "/usr/bin/daad",
-      version: "0.4.0",
-      source: "system",
-      releaseTag: "",
-      releaseUrl: "",
+      id: "installed:/home/demo/.daad-ide/interpreters/v0.1.0/daad",
+      label: "daad v0.1.0",
+      path: "/home/demo/.daad-ide/interpreters/v0.1.0/daad",
+      version: "v0.1.0",
+      source: "downloaded",
+      releaseTag: "v0.1.0",
+      releaseUrl: "https://github.com/daadLang/daad/releases/tag/v0.1.0",
       installed: true,
       selected: false,
+      latest: false,
     },
     {
-      id: "release:v0.5.0",
-      label: "Daad v0.5.0 (available)",
+      id: "release:v0.2.0",
+      label: "daad v0.2.0",
       path: "",
-      version: "v0.5.0",
+      version: "v0.2.0",
       source: "release",
-      releaseTag: "v0.5.0",
-      releaseUrl: "https://github.com/daadLang",
+      releaseTag: "v0.2.0",
+      releaseUrl: "https://github.com/daadLang/daad/releases/tag/v0.2.0",
       installed: false,
       selected: false,
+      latest: true,
     },
   ]
+  const versionOf = (path: string) =>
+    interpreters.find((o) => o.path === path)?.version ?? ""
 
   const childrenOf = (dir: string) =>
     [...files.keys()].filter(
@@ -75,6 +82,10 @@ export function createMockBackend() {
     async CreateFile(path) {
       if (files.has(path)) throw "failed to create file: file exists"
       files.set(path, "")
+    },
+    async CreateDirectory(path) {
+      if (files.has(path)) throw "failed to create folder: file exists"
+      files.set(path, null)
     },
     async DeletePath(target) {
       for (const p of [...files.keys()])
@@ -109,12 +120,32 @@ export function createMockBackend() {
     async ListInterpreters(configured) {
       return interpreters.map((o) => ({ ...o, selected: o.path === configured }))
     },
+    async GetInterpreterStatus(configured): Promise<InterpreterStatus> {
+      if (!configured) {
+        return { found: false, path: "", version: "", label: "", source: "", reason: "not-installed" }
+      }
+      const version = versionOf(configured)
+      return {
+        found: true,
+        path: configured,
+        version,
+        label: version ? `daad ${version}` : "daad",
+        source: configured.includes(".daad-ide") ? "downloaded" : "custom",
+        reason: "",
+      }
+    },
     async SelectInterpreter() {
       return "/opt/daad/bin/daad"
     },
     async InstallInterpreter() {
       await new Promise((r) => setTimeout(r, 1200))
-      interpreters[1] = { ...interpreters[1], installed: true, path: "/home/demo/.daad-ide/daad" }
+      interpreters[1] = {
+        ...interpreters[1],
+        installed: true,
+        source: "downloaded",
+        id: "installed:/home/demo/.daad-ide/interpreters/v0.2.0/daad",
+        path: "/home/demo/.daad-ide/interpreters/v0.2.0/daad",
+      }
       return interpreters[1].path
     },
     async OpenExternalURL(url) {

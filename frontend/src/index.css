@@ -169,6 +169,16 @@
 .cm-editor {
   height: 100%;
 }
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button]:hover {
+  opacity: 0.9;
+}
+
 .cm-editor.cm-focused {
   outline: none;
 }

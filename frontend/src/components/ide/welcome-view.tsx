@@ -1,6 +1,7 @@
-import { FolderOpen, FolderPlus, History, Keyboard, Settings } from "lucide-react"
+import { Download, FolderOpen, FolderPlus, History, Keyboard, Settings } from "lucide-react"
 
 import { Shortcut } from "@/components/ide/shortcut"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Item,
@@ -25,6 +26,7 @@ const SHORTCUTS: { label: string; keys: string[] }[] = [
   { label: "تشغيل", keys: ["F5"] },
   { label: "حفظ", keys: [MOD, "S"] },
   { label: "إظهار المستكشف", keys: [MOD, "B"] },
+  { label: "تقسيم المحرر", keys: [MOD, "\\"] },
   { label: "نافذة الإخراج", keys: [MOD, "`"] },
   { label: "الإعدادات", keys: [MOD, "P"] },
   { label: "لوحة الأوامر", keys: [MOD, "Shift", "P"] },
@@ -32,12 +34,30 @@ const SHORTCUTS: { label: string; keys: string[] }[] = [
 
 export function WelcomeView() {
   const recents = useIdeStore((state) => state.recents)
+  const interpreterMissing = useIdeStore((state) => state.interpreter.status === "missing")
   const logo = useLogo()
 
   return (
     <div className="h-full overflow-auto">
       <div className="mx-auto flex min-h-full max-w-4xl flex-col items-center justify-center gap-10 p-8">
         <img src={logo} alt="شعار ضاد" className="h-28 object-contain" />
+
+        {interpreterMissing && (
+          <Alert variant="destructive" className="max-w-xl">
+            <Download />
+            <AlertTitle>لم يتم العثور على مفسر ضاد</AlertTitle>
+            <AlertDescription>
+              <p>تحتاج إلى مفسر لتشغيل البرامج. يمكنك تثبيت أحدث إصدار بنقرة واحدة.</p>
+              <Button
+                size="sm"
+                className="mt-2"
+                onClick={() => openSettings("interpreter")}
+              >
+                تثبيت / اختيار مفسر
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid w-full gap-8 md:grid-cols-3">
           <section className="flex flex-col gap-3">
@@ -54,7 +74,7 @@ export function WelcomeView() {
                 <FolderPlus />
                 مشروع جديد…
               </Button>
-              <Button variant="ghost" onClick={openSettings}>
+              <Button variant="ghost" onClick={() => openSettings()}>
                 <Settings />
                 الإعدادات
               </Button>

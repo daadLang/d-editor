@@ -15,20 +15,24 @@
 
 ## التطوير
 
-يعتمد المحرر على [Wails](https://wails.io/) لتشغيل واجهة **React + shadcn/ui** داخل تطبيق Go
-سطح مكتب. تحتاج إلى Go وNode.js وYarn وWails CLI:
+يعتمد المحرر على [Wails 3](https://v3.wails.io/) لتشغيل واجهة **React + shadcn/ui** داخل تطبيق Go
+سطح مكتب. تحتاج إلى Go 1.25 وNode.js وYarn وWails 3 CLI
+(على لينكس تحتاج أيضًا إلى `libgtk-3-dev` و`libwebkit2gtk-4.1-dev`):
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
+go mod tidy
 yarn install
-wails dev
+wails3 dev        # أو: yarn dev
 ```
 
-لبناء التطبيق:
+لبناء التطبيق (الناتج في `bin/`):
 
 ```bash
-wails build
+wails3 build      # أو: yarn build
 ```
+
+للتحقق من الاعتماديات وبيئة النظام: `wails3 doctor`.
 
 لتطوير الواجهة وحدها في المتصفح (بدون Go، مع بيانات تجريبية):
 
@@ -43,7 +47,7 @@ frontend/src
 ├── components/ui     مكوّنات shadcn/ui (مولّدة بدعم RTL، لا تُعدَّل يدويًا)
 ├── components/ide    مكوّنات المحرر (الشريط الجانبي، التبويبات، الإخراج، ...)
 ├── store/ide.ts      حالة التطبيق وإجراءاته (Zustand)
-├── lib/wails.ts      واجهة مكتوبة الأنواع لدوال Go في app.go
+├── lib/wails.ts      واجهة مكتوبة الأنواع لدوال Go في app.go (تستدعيها بالاسم عبر @wailsio/runtime)
 ├── lib/themes.ts     الـ 29 مظهرًا (ألوان الواجهة + مظهر CodeMirror)
 └── language          دعم لغة ضاد في CodeMirror (محلل + إكمال تلقائي)
 ```

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useRef } from "react"
 
 import {
   closeBrackets,
@@ -33,11 +33,17 @@ import {
 } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
-import { editorRegistry } from "@/lib/editor-registry"
+import { editorRegistry, remoteSync } from "@/lib/editor-registry"
 import { useThemeStore } from "@/lib/theme-store"
 import { getTheme } from "@/lib/themes"
 import { daad } from "@/language/language"
-import { markDirty, setCursor, type FileTab } from "@/store/ide"
+import {
+  markDirty,
+  setActiveGroup,
+  setCursor,
+  useIdeStore,
+  type FileTab,
+} from "@/store/ide"
 
 const themeCompartment = new Compartment()
 
@@ -52,79 +58,91 @@ const rtlLayout = EditorView.theme({
 })
 
 interface CodeEditorProps {
-  /** The active file tab, or undefined when another view is showing. */
+  /** The editor group this view belongs to. */
+  groupId: string
+  /** The group's active file tab, or undefined when another view is showing. */
   tab: FileTab | undefined
 }
 
 /**
- * CodeMirror host. A single EditorView is reused for all files: switching tabs
- * swaps in that file's saved EditorState (see `editorRegistry`).
+ * Extensions shared by every editor. They hold no component state: the
+ * listener asks the registry which group and file the view shows, so a state
+ * stays valid when its editor is remounted or moved to another group.
  */
-export function CodeEditor({ tab }: CodeEditorProps) {
+const baseExtensions = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightActiveLine(),
+  drawSelection(),
+  history(),
+  indentOnInput(),
+  bracketMatching(),
+  closeBrackets(),
+  highlightSelectionMatches(),
+  search({ top: true }),
+  EditorView.lineWrapping,
+  rtlLayout,
+  daad(),
+  // Themes bring their own highlight style; this is only a fallback.
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...completionKeymap,
+    indentWithTab,
+  ]),
+  EditorView.updateListener.of((update) => {
+    const info = editorRegistry.infoFor(update.view)
+    if (!info?.fileId) return
+    const replayed = update.transactions.some((tr) => tr.annotation(remoteSync))
+    if (update.docChanged && !replayed) {
+      markDirty(info.fileId)
+      // Keep other groups showing the same file in step.
+      editorRegistry.broadcast(info.groupId, info.fileId, update.changes)
+    }
+    // The status bar follows the group the user is working in.
+    if (useIdeStore.getState().activeGroupId !== info.groupId) return
+    if (update.docChanged || update.selectionSet) {
+      const head = update.state.selection.main.head
+      const line = update.state.doc.lineAt(head)
+      setCursor(line.number, head - line.from + 1)
+    }
+  }),
+]
+
+/**
+ * CodeMirror host for one editor group. The group's EditorView is reused for
+ * all of its files: switching tabs swaps in that file's saved EditorState
+ * (see `editorRegistry`).
+ */
+export function CodeEditor({ groupId, tab }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const shownIdRef = useRef<string | null>(null)
 
   const themeKey = useThemeStore((state) => state.key)
   const themeRef = useRef(getTheme(themeKey).cm)
   themeRef.current = getTheme(themeKey).cm
 
-  const extensions = useMemo(
-    () => [
-      lineNumbers(),
-      highlightActiveLineGutter(),
-      highlightActiveLine(),
-      drawSelection(),
-      history(),
-      indentOnInput(),
-      bracketMatching(),
-      closeBrackets(),
-      highlightSelectionMatches(),
-      search({ top: true }),
-      EditorView.lineWrapping,
-      rtlLayout,
-      daad(),
-      // Themes bring their own highlight style; this is only a fallback.
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...completionKeymap,
-        indentWithTab,
-      ]),
-      EditorView.updateListener.of((update) => {
-        const id = shownIdRef.current
-        if (!id) return
-        if (update.docChanged) markDirty(id)
-        if (update.docChanged || update.selectionSet) {
-          const head = update.state.selection.main.head
-          const line = update.state.doc.lineAt(head)
-          setCursor(line.number, head - line.from + 1)
-        }
-      }),
-    ],
-    []
-  )
-
   const createState = (doc: string) =>
     EditorState.create({
       doc,
-      extensions: [...extensions, themeCompartment.of(themeRef.current)],
+      extensions: [...baseExtensions, themeCompartment.of(themeRef.current)],
     })
 
   // Create the view once.
   useEffect(() => {
     const view = new EditorView({ parent: hostRef.current! })
     viewRef.current = view
-    editorRegistry.attach(view)
+    editorRegistry.attach(groupId, view)
     return () => {
+      editorRegistry.detach(groupId)
       view.destroy()
       viewRef.current = null
-      shownIdRef.current = null
-      editorRegistry.detach()
     }
+    // A group's id never changes while it is mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Swap in the document of the active tab.
@@ -133,15 +151,16 @@ export function CodeEditor({ tab }: CodeEditorProps) {
   useEffect(() => {
     const view = viewRef.current
     if (!view || !tabId) return
-    editorRegistry.show(tabId, () => createState(tabSaved ?? ""))
-    shownIdRef.current = tabId
+    editorRegistry.show(groupId, tabId, tabSaved ?? "", createState)
     // Restored states carry the theme they were stashed with.
     view.dispatch({ effects: themeCompartment.reconfigure(themeRef.current) })
     view.requestMeasure()
-    view.focus()
-    const head = view.state.selection.main.head
-    const line = view.state.doc.lineAt(head)
-    setCursor(line.number, head - line.from + 1)
+    if (useIdeStore.getState().activeGroupId === groupId) {
+      view.focus()
+      const head = view.state.selection.main.head
+      const line = view.state.doc.lineAt(head)
+      setCursor(line.number, head - line.from + 1)
+    }
     // `tabSaved` is only the initial text; later saves must not reset the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId])
@@ -157,6 +176,8 @@ export function CodeEditor({ tab }: CodeEditorProps) {
     <div
       ref={hostRef}
       className={cn("h-full min-h-0 overflow-hidden", !tab && "hidden")}
+      // Clicking or tabbing into an editor makes its group the active one.
+      onFocusCapture={() => setActiveGroup(groupId)}
     />
   )
 }

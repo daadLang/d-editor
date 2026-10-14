@@ -6,11 +6,11 @@
   "description": "Minimal IDE for ض (Ḍād) Arabic Programming Language",
   "scripts": {
     "dev:frontend": "vite",
-    "dev": "wails dev",
+    "dev": "wails3 dev -config ./build/config.yml",
     "build:frontend": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "build": "wails build",
-    "start": "./build/bin/daad-ide"
+    "build": "wails3 build",
+    "start": "./bin/daad-ide"
   },
   "keywords": [
     "wails",
@@ -29,7 +29,9 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
     "@fsegurai/codemirror-theme-bundle": "^6.4.4",
+    "@lezer/highlight": "^1.2.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@wailsio/runtime": "3.0.0-beta.28",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

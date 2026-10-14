@@ -1,0 +1,39 @@
+# Configuration read by `wails3 dev` (see `yarn dev`).
+version: "3"
+
+info:
+  companyName: "daadLang"
+  productName: "ض IDE"
+  productIdentifier: "io.github.daadlang.d-editor"
+  description: "Minimal IDE for the Daad Arabic programming language"
+  copyright: "(c) daadLang"
+  version: "0.0.1"
+
+# Dev mode: rebuild and restart the Go side when Go files change, while Vite
+# serves the frontend with hot reload.
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+      - dist
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task build DEV=true
+      type: blocking
+    - cmd: wails3 task dev:frontend
+      type: background
+    - cmd: wails3 task run
+      type: primary

@@ -25,6 +25,7 @@ import {
   answerSave,
   closeDialog,
   createFileIn,
+  createFolderIn,
   createProject,
   deleteEntry,
   renameEntry,
@@ -149,6 +150,19 @@ export function AppDialogs() {
         initialValue="جديد.ض"
         onSubmit={async (name) => {
           if (dialog?.kind === "new-file") await createFileIn(dialog.dir, name)
+        }}
+      />
+
+      <NameDialog
+        open={dialog?.kind === "new-folder"}
+        title="مجلد جديد"
+        description="أدخل اسم المجلد."
+        label="اسم المجلد"
+        placeholder="اسم المجلد"
+        submitLabel="إنشاء"
+        initialValue="مجلد جديد"
+        onSubmit={async (name) => {
+          if (dialog?.kind === "new-folder") await createFolderIn(dialog.dir, name)
         }}
       />
 

@@ -1,17 +1,17 @@
-import { Circle, TerminalSquare } from "lucide-react"
+import { Circle, TerminalSquare, TriangleAlert } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getTheme } from "@/lib/themes"
 import { useThemeStore } from "@/lib/theme-store"
 import { isDesktop } from "@/lib/wails"
-import { selectActiveTab, toggleOutput, useIdeStore } from "@/store/ide"
+import { openSettings, selectActiveTab, toggleOutput, useIdeStore } from "@/store/ide"
 
 export function StatusBar() {
   const tab = useIdeStore(selectActiveTab)
   const cursor = useIdeStore((state) => state.cursor)
   const running = useIdeStore((state) => state.output.running)
-  const interpreterPath = useIdeStore((state) => state.settings.interpreterPath)
+  const interpreter = useIdeStore((state) => state.interpreter)
   const themeKey = useThemeStore((state) => state.key)
 
   return (
@@ -26,12 +26,34 @@ export function StatusBar() {
           قيد التشغيل
         </span>
       )}
-      {!interpreterPath && (
-        <span className="text-destructive">لم يتم اختيار مفسر</span>
+      {interpreter.status === "missing" && (
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-5 text-destructive hover:text-destructive"
+          onClick={() => openSettings("interpreter")}
+        >
+          <TriangleAlert />
+          لا يوجد مفسر — اضغط للإعداد
+        </Button>
       )}
       {!isDesktop() && <span>(معاينة المتصفح)</span>}
 
       <div className="ms-auto flex h-full items-center gap-3">
+        {interpreter.status === "ready" && (
+          <>
+            <button
+              type="button"
+              dir="ltr"
+              title={interpreter.path}
+              className="rounded px-1 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => openSettings("interpreter")}
+            >
+              {interpreter.label}
+            </button>
+            <Separator orientation="vertical" className="h-3.5" />
+          </>
+        )}
         {tab?.type === "file" && (
           <>
             <span dir="ltr">

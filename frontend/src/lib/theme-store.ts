@@ -1,7 +1,7 @@
 import { create } from "zustand"
 
 import {
-  DEFAULT_THEME_KEY,
+  THEMES,
   getTheme,
   type ThemeCategory,
   type ThemePalette,
@@ -86,28 +86,37 @@ export function paletteToCssVars(
 // ── store ───────────────────────────────────────────────────────────────────
 
 interface ThemeState {
+  /** The theme in effect. */
   key: string
   category: ThemeCategory
+  /** True while no theme was chosen, so the OS light/dark setting decides. */
+  isDefault: boolean
 }
 
+/** The user's saved choice; "" means none, i.e. the default. */
 function readCachedKey() {
   try {
-    return localStorage.getItem(CACHE_KEY) ?? DEFAULT_THEME_KEY
+    return localStorage.getItem(CACHE_KEY) ?? ""
   } catch {
-    return DEFAULT_THEME_KEY
+    return ""
   }
 }
 
-const initial = getTheme(readCachedKey())
+const cachedKey = readCachedKey()
+const initial = getTheme(cachedKey)
 
 export const useThemeStore = create<ThemeState>()(() => ({
   key: initial.key,
   category: initial.category,
+  isDefault: cachedKey === "",
 }))
 
-/** Applies an IDE theme to the document and remembers it for the next launch. */
-export function applyTheme(key: string) {
-  const theme = getTheme(key)
+/**
+ * Applies an IDE theme to the document and remembers the choice for the next
+ * launch. Pass "" to go back to the default (Daad Light/Dark by OS setting).
+ */
+export function applyTheme(choice: string) {
+  const theme = getTheme(choice)
   const root = document.documentElement
 
   for (const [name, value] of Object.entries(
@@ -118,10 +127,24 @@ export function applyTheme(key: string) {
   root.classList.toggle("dark", theme.category === "dark")
   root.style.colorScheme = theme.category
 
+  // Remember the *choice*, not the resolved theme, so the default keeps
+  // following the OS setting.
+  const isDefault = choice === "" || !THEMES.some((t) => t.key === choice)
   try {
-    localStorage.setItem(CACHE_KEY, theme.key)
+    localStorage.setItem(CACHE_KEY, isDefault ? "" : theme.key)
   } catch {
     // Storage may be unavailable in some webviews; the theme still applies.
   }
-  useThemeStore.setState({ key: theme.key, category: theme.category })
+  useThemeStore.setState({ key: theme.key, category: theme.category, isDefault })
+}
+
+// While no theme is chosen, follow the OS when it switches between light/dark.
+try {
+  window
+    .matchMedia("(prefers-color-scheme: light)")
+    .addEventListener("change", () => {
+      if (useThemeStore.getState().isDefault) applyTheme("")
+    })
+} catch {
+  // matchMedia is unavailable; the default is resolved once at startup.
 }

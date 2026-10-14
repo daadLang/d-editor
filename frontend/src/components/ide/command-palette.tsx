@@ -3,7 +3,12 @@ import {
   FolderOpen,
   FolderPlus,
   Palette,
-  PanelLeft,
+  PanelBottom,
+  PanelRight,
+  Columns2,
+  Rows2,
+  LayoutDashboard,
+  Download,
   Play,
   Save,
   Settings,
@@ -22,7 +27,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
-import { useSidebar } from "@/components/ui/sidebar"
 import { MOD } from "@/lib/platform"
 import { THEMES } from "@/lib/themes"
 import {
@@ -33,10 +37,17 @@ import {
   runActive,
   saveActive,
   setPaletteOpen,
+  flipEditorLayout,
+  splitActiveGroup,
   toggleOutput,
   updateSettings,
   useIdeStore,
 } from "@/store/ide"
+import {
+  resetLayout,
+  togglePanelPosition,
+  toggleSidebar,
+} from "@/store/layout"
 
 interface Action {
   label: string
@@ -48,7 +59,6 @@ interface Action {
 export function CommandPalette() {
   const open = useIdeStore((state) => state.paletteOpen)
   const folder = useIdeStore((state) => state.folder)
-  const { toggleSidebar } = useSidebar()
 
   const actions: Action[] = [
     { label: "تشغيل الملف الحالي", icon: Play, keys: ["F5"], run: () => void runActive() },
@@ -62,11 +72,21 @@ export function CommandPalette() {
             icon: FilePlus,
             run: () => openDialog({ kind: "new-file", dir: folder }),
           },
+          {
+            label: "مجلد جديد",
+            icon: FolderPlus,
+            run: () => openDialog({ kind: "new-folder", dir: folder }),
+          },
         ]
       : []),
-    { label: "إظهار/إخفاء المستكشف", icon: PanelLeft, keys: [MOD, "B"], run: toggleSidebar },
+    { label: "إظهار/إخفاء المستكشف", icon: PanelRight, keys: [MOD, "B"], run: toggleSidebar },
     { label: "إظهار/إخفاء نافذة الإخراج", icon: TerminalSquare, keys: [MOD, "`"], run: toggleOutput },
-    { label: "الإعدادات", icon: Settings, keys: [MOD, "P"], run: openSettings },
+    { label: "تقسيم المحرر", icon: Columns2, keys: [MOD, "\\"], run: splitActiveGroup },
+    { label: "تبديل ترتيب المحررات (أفقي/عمودي)", icon: Rows2, run: flipEditorLayout },
+    { label: "نقل نافذة الإخراج (أسفل/جانب)", icon: PanelBottom, run: togglePanelPosition },
+    { label: "إعادة ضبط التخطيط", icon: LayoutDashboard, run: resetLayout },
+    { label: "تثبيت / اختيار مفسر ضاد", icon: Download, run: () => openSettings("interpreter") },
+    { label: "الإعدادات", icon: Settings, keys: [MOD, "P"], run: () => openSettings() },
     { label: "إغلاق كل التبويبات", icon: XSquare, run: () => void closeAllTabs() },
   ]
 
@@ -101,6 +121,13 @@ export function CommandPalette() {
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="تغيير المظهر">
+          <CommandItem
+            value="مظهر افتراضي ضاد"
+            onSelect={() => choose(() => void updateSettings({ theme: "" }))}
+          >
+            <Palette />
+            افتراضي (ضاد، يتبع نمط النظام)
+          </CommandItem>
           {THEMES.map((theme) => (
             <CommandItem
               key={theme.key}

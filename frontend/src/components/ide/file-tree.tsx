@@ -7,6 +7,7 @@ import {
   FileCode2,
   FilePlus,
   Folder,
+  FolderPlus,
   FolderOpen,
   Pencil,
   Trash2,
@@ -32,6 +33,7 @@ import {
   SidebarMenuSkeleton,
   SidebarMenuSub,
 } from "@/components/ui/sidebar"
+import { startFileDrag } from "@/lib/tab-dnd"
 import { api, errorMessage, type FileEntry } from "@/lib/wails"
 import { openDialog, openFile, useIdeStore } from "@/store/ide"
 
@@ -102,12 +104,20 @@ function EntryMenu({ entry, children }: { entry: FileEntry; children: ReactNode 
         }}
       >
         {entry.isDirectory && (
-          <ContextMenuItem
-            onSelect={afterClose(() => openDialog({ kind: "new-file", dir: entry.path }))}
-          >
-            <FilePlus />
-            ملف جديد
-          </ContextMenuItem>
+          <>
+            <ContextMenuItem
+              onSelect={afterClose(() => openDialog({ kind: "new-file", dir: entry.path }))}
+            >
+              <FilePlus />
+              ملف جديد
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={afterClose(() => openDialog({ kind: "new-folder", dir: entry.path }))}
+            >
+              <FolderPlus />
+              مجلد جديد
+            </ContextMenuItem>
+          </>
         )}
         <ContextMenuItem onSelect={afterClose(() => openDialog({ kind: "rename", entry }))}>
           <Pencil />
@@ -137,7 +147,13 @@ function FileNode({ entry }: { entry: FileEntry }) {
   return (
     <SidebarMenuItem>
       <EntryMenu entry={entry}>
-        <SidebarMenuButton isActive={active} onClick={() => void openFile(entry.path)}>
+        <SidebarMenuButton
+          isActive={active}
+          onClick={() => void openFile(entry.path)}
+          // Drag onto an editor to open it there, or onto an edge to split.
+          draggable
+          onDragStart={(event) => startFileDrag(event, entry.path)}
+        >
           <Icon />
           <span className="filename">{entry.name}</span>
         </SidebarMenuButton>
@@ -149,6 +165,15 @@ function FileNode({ entry }: { entry: FileEntry }) {
 function FolderNode({ entry }: { entry: FileEntry }) {
   const [open, setOpen] = useState(false)
   const children = useDirectory(entry.path, open)
+
+  // "Collapse all" in the explorer header closes every expanded folder.
+  const collapseVersion = useIdeStore((state) => state.collapseVersion)
+  const seenCollapse = useRef(collapseVersion)
+  useEffect(() => {
+    if (seenCollapse.current === collapseVersion) return
+    seenCollapse.current = collapseVersion
+    setOpen(false)
+  }, [collapseVersion])
 
   return (
     <SidebarMenuItem>

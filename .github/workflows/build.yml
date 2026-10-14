@@ -12,77 +12,90 @@ env:
 
 jobs:
   build:
-    name: Build (${{ matrix.build.platform }})
+    name: Build (${{ matrix.build.name }})
     runs-on: ${{ matrix.build.os }}
     strategy:
       fail-fast: false
       matrix:
+        # Wails 3 links the system webview through cgo on Linux and macOS, so
+        # each of those targets is built natively on a matching runner.
         build:
-          # --- Linux Targets ---
           - os: ubuntu-latest
-            platform: linux/amd64
             name: app-linux-amd64
+            goos: linux
+            goarch: amd64
 
-          - os: ubuntu-latest
-            platform: linux/arm64
+          - os: ubuntu-24.04-arm
             name: app-linux-arm64
+            goos: linux
+            goarch: arm64
 
-          # --- Windows Targets ---
           - os: windows-latest
-            platform: windows/amd64
             name: app-windows-amd64.exe
+            goos: windows
+            goarch: amd64
 
           - os: windows-latest
-            platform: windows/arm64
             name: app-windows-arm64.exe
+            goos: windows
+            goarch: arm64
 
-          # --- macOS Targets ---
           - os: macos-latest
-            platform: darwin/universal
-            name: app-macos-universal
+            name: app-macos-arm64
+            goos: darwin
+            goarch: arm64
+
+          - os: macos-13
+            name: app-macos-amd64
+            goos: darwin
+            goarch: amd64
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '26'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: 'yarn.lock'
 
-      # Install Linux toolchain & WebKit headers for cross-compiling
-      - name: Install Linux Build Dependencies
+      - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Build Wails App
+      - name: Build frontend
         run: |
-          wails build -platform ${{ matrix.build.platform }} -o ${{ matrix.build.name }}
+          yarn install --frozen-lockfile
+          yarn build:frontend
+
+      - name: Build app
+        shell: bash
+        env:
+          GOOS: ${{ matrix.build.goos }}
+          GOARCH: ${{ matrix.build.goarch }}
+          CGO_ENABLED: ${{ matrix.build.goos == 'windows' && '0' || '1' }}
+        run: |
+          go mod download
+          LDFLAGS="-w -s"
+          if [ "$GOOS" = "windows" ]; then LDFLAGS="-H windowsgui $LDFLAGS"; fi
+          mkdir -p bin
+          go build -tags production -trimpath -ldflags "$LDFLAGS" -o "bin/${{ matrix.build.name }}"
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build.name }}
-          path: build/bin/*
+          path: bin/*
 
   release:
     name: Create GitHub Release

@@ -27,6 +27,8 @@ const contentSecurityPolicy = {
 }
 
 // Wails serves the built frontend from dist/renderer (see main.go → go:embed).
+// `wails3 dev` starts this server on WAILS_VITE_PORT and points the desktop
+// window at it; a plain `yarn dev:frontend` keeps using 5173.
 export default defineConfig({
   root: "frontend",
   base: "./",
@@ -42,7 +44,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    host: "127.0.0.1",
+    port: Number(process.env.WAILS_VITE_PORT) || 5173,
     strictPort: true,
   },
 })
