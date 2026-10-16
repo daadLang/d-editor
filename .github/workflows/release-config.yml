@@ -1,0 +1,21 @@
+name: Release Configuration
+
+on:
+  workflow_call:
+    outputs:
+      cross_image_tag:
+        description: Version tag for the prebuilt cross-compilation images
+        value: ${{ jobs.config.outputs.cross_image_tag }}
+
+env:
+  CROSS_IMAGE_TAG: v3.0.0-beta.30
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      cross_image_tag: ${{ steps.config.outputs.cross_image_tag }}
+    steps:
+      - name: Set release configuration
+        id: config
+        run: echo "cross_image_tag=${CROSS_IMAGE_TAG}" >> "$GITHUB_OUTPUT"

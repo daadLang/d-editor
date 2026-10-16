@@ -14,13 +14,56 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  packages: write
 
 jobs:
+  config:
+    uses: ./.github/workflows/release-config.yml
+
   test:
     uses: ./.github/workflows/test.yml
 
+  check-images:
+    needs: config
+    runs-on: ubuntu-latest
+    outputs:
+      missing: ${{ steps.check.outputs.missing }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Check cross-compilation images
+        id: check
+        run: |
+          missing=false
+          for architecture in amd64 arm64; do
+            image="ghcr.io/daadlang/d-editor/wails-cross:${{ needs.config.outputs.cross_image_tag }}-${architecture}"
+            if docker manifest inspect "$image" >/dev/null 2>&1; then
+              echo "Found $image"
+            else
+              echo "Missing $image"
+              missing=true
+            fi
+          done
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+  publish-images:
+    needs: check-images
+    if: needs.check-images.outputs.missing == 'true'
+    uses: ./.github/workflows/publish-cross-images.yml
+
   release:
-    needs: test
+    needs: [config, test, check-images, publish-images]
+    if: >-
+      always() &&
+      needs.config.result == 'success' &&
+      needs.test.result == 'success' &&
+      needs.check-images.result == 'success' &&
+      (needs.publish-images.result == 'success' || needs.publish-images.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -76,6 +119,22 @@ jobs:
         if: steps.semrel.outputs.released == 'true'
         working-directory: frontend
         run: yarn install --frozen-lockfile
+
+      - name: Log in to GHCR
+        if: steps.semrel.outputs.released == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Pull cross-compilation images
+        if: steps.semrel.outputs.released == 'true'
+        run: |
+          docker pull "ghcr.io/daadlang/d-editor/wails-cross:${{ needs.config.outputs.cross_image_tag }}-amd64"
+          docker tag "ghcr.io/daadlang/d-editor/wails-cross:${{ needs.config.outputs.cross_image_tag }}-amd64" wails-cross
+          docker pull "ghcr.io/daadlang/d-editor/wails-cross:${{ needs.config.outputs.cross_image_tag }}-arm64"
+          docker tag "ghcr.io/daadlang/d-editor/wails-cross:${{ needs.config.outputs.cross_image_tag }}-arm64" wails-cross-arm64
 
       - name: Build binaries
         if: steps.semrel.outputs.released == 'true'
