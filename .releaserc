@@ -2,7 +2,7 @@
   "branches": [
     "main",
     {
-      "name": "feature/editor-groups-and-interpreter-ux",
+      "name": "beta",
       "channel": "beta",
       "prerelease": "beta"
     }

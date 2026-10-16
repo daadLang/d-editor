@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/editor-groups-and-interpreter-ux
+      - beta
 
 concurrency:
   group: release-${{ github.ref }}
