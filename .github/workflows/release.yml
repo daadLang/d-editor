@@ -16,7 +16,11 @@ permissions:
   pull-requests: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   release:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,9 +34,9 @@ jobs:
         with:
           node-version: lts/*
 
-      # Switch to `npm ci` (and add `cache: npm` above) once package-lock.json is committed.
+      # package-lock.json pins the semantic-release changelog dependency tree.
       - name: Install release tooling
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       # Tags the commit, updates CHANGELOG.md and creates the GitHub release.
       # Stable versions come from main, X.Y.Z-beta.N from the feature branch.
@@ -55,6 +59,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Install Wails CLI
+        if: steps.semrel.outputs.released == 'true'
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.30
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install frontend dependencies
+        if: steps.semrel.outputs.released == 'true'
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
 
       - name: Build binaries
         if: steps.semrel.outputs.released == 'true'
