@@ -28,3 +28,4 @@ release
 .eslintcache
 -.o
 dist/
+node_modules/
