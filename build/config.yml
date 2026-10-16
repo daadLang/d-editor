@@ -1,0 +1,64 @@
+# This file contains the configuration for this project.
+# When you update `info` or `fileAssociations`, run `wails3 task common:update:build-assets` to update the assets.
+# Note that this will overwrite any changes you have made to the assets.
+version: '3'
+
+# This information is used to generate the build assets.
+info:
+  companyName: "daadLang" # The name of the company
+  productName: "ض IDE" # The name of the application
+  productIdentifier: "io.github.daadlang.d-editor" # The unique product identifier
+  description: "Minimal IDE for the Daad Arabic programming language" # The application description
+  copyright: "(c) daadLang" # Copyright text
+  comments: "ض IDE" # Comments
+  version: "0.0.1" # The application version
+
+# Dev mode configuration
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js" # Watch for changes to JS/TS files included using the //wails:include directive.
+      - "*.ts" # The frontend directory will be excluded entirely by the setting above.
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+      # The standard frontend task waits up to 60s for HTTP 200 from
+      # FRONTEND_DEVSERVER_URL before starting the app. Override if needed;
+      # custom background commands can opt in with the same readiness block.
+      # readiness:
+      #   http: "http://localhost:9245/"
+      #   timeout: "60s"
+      #   interval: "200ms"
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown
+
+# File Associations
+# More information at: https://v3.wails.io
+fileAssociations:
+#  - ext: daad
+#    name: Daad
+#    description: Daad source file
+#    iconName: daadFileIcon
+#    role: Editor
+
+# Other data
+other:
+  - name: ض IDE

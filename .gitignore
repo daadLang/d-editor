@@ -1,16 +1,30 @@
-node_modules/
-dist/
-.yarn/
-.DS_Store
+.task
+bin
+frontend/dist
+frontend/node_modules
+build/linux/appimage/build
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+# Mobile generated (per-machine; overlays hold absolute paths)
+build/ios/xcode/overlay.json
+build/ios/xcode/gen/
+build/android/overlay.json
+build/android/gen/
+
+# Frontend
+frontend/bindings
+frontend/.yarn
+.yarn
 *.log
 npm-debug.log*
-.npm
-.eslintcache
+
+# Release output of `make build-all`
+release
+
+# OS / editor
+.DS_Store
 *.swp
 *.swo
 *~
-release
-build/*
-!build/
-!build/appicon.png
-frontend/wailsjs/
+.eslintcache
+-.o
+dist/

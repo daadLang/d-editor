@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.0.1"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.0.1",
+			"CompanyName": "daadLang",
+			"FileDescription": "Minimal IDE for the Daad Arabic programming language",
+			"LegalCopyright": "(c) daadLang",
+			"ProductName": "ض IDE",
+			"Comments": "ض IDE"
+		}
+	}
+}

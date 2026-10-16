@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const daadReleasesAPI = "https://api.github.com/repos/daadLang/daad/releases/latest"
@@ -43,14 +43,26 @@ type InterpreterInfo struct {
 
 type InterpreterOption struct {
 	ID         string `json:"id"`
-	Label      string `json:"label"`
+	Label      string `json:"label"` // e.g. "daad v0.2.0"
 	Path       string `json:"path"`
 	Version    string `json:"version"`
-	Source     string `json:"source"`
+	Source     string `json:"source"` // system | downloaded | custom | release
 	ReleaseTag string `json:"releaseTag"`
 	ReleaseURL string `json:"releaseUrl"`
 	Installed  bool   `json:"installed"`
 	Selected   bool   `json:"selected"`
+	Latest     bool   `json:"latest"`
+}
+
+// InterpreterStatus describes the interpreter the IDE would use right now, so
+// the UI can warn before the first run instead of failing during it.
+type InterpreterStatus struct {
+	Found   bool   `json:"found"`
+	Path    string `json:"path"`
+	Version string `json:"version"`
+	Label   string `json:"label"`
+	Source  string `json:"source"`
+	Reason  string `json:"reason"` // "" | "not-installed" | "missing-file"
 }
 
 func (a *App) SelectInterpreter() (string, error) {
@@ -61,57 +73,53 @@ func (a *App) SelectInterpreter() (string, error) {
 	if err := os.MkdirAll(interpreterDirectory, 0755); err != nil {
 		return "", fmt.Errorf("failed to create interpreter directory: %w", err)
 	}
-	return wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title:            "Select Daad interpreter",
-		DefaultDirectory: interpreterDirectory,
-		ShowHiddenFiles:  true,
-		Filters: []wailsruntime.FileFilter{{
-			DisplayName: "Daad interpreter",
-			Pattern:     "daad;daad.exe;*",
-		}},
-	})
+	return application.Get().Dialog.OpenFile().
+		SetTitle("Select Daad interpreter").
+		SetDirectory(interpreterDirectory).
+		ShowHiddenFiles(true).
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		AddFilter("Daad interpreter", "daad;daad.exe;*").
+		PromptForSingleSelection()
 }
 
 func (a *App) ListInterpreters(configuredPath string) ([]InterpreterOption, error) {
 	options := make([]InterpreterOption, 0)
-	seenPaths := make(map[string]bool)
-	addInstalled := func(path, source, label string) {
-		if path == "" || seenPaths[path] {
+	seen := make(map[string]int) // canonical path -> index in options
+	systemPath, _ := exec.LookPath("daad")
+	directory, _ := a.interpreterDirectory()
+
+	addInstalled := func(path string) {
+		key := canonicalPath(path)
+		if path == "" || key == "" {
 			return
 		}
-		seenPaths[path] = true
-		version := interpreterVersion(path)
-		if label == "" {
-			label = "Daad" + versionLabel(version)
+		if _, ok := seen[key]; ok {
+			return
 		}
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			return
+		}
+		seen[key] = len(options)
+		version := detectVersion(path)
 		options = append(options, InterpreterOption{
 			ID:        "installed:" + path,
-			Label:     label,
+			Label:     interpreterLabel(version),
 			Path:      path,
 			Version:   version,
-			Source:    source,
+			Source:    interpreterSource(path, systemPath, directory),
 			Installed: true,
-			Selected:  path == configuredPath,
+			Selected:  sameFile(path, configuredPath),
 		})
 	}
 
-	if configuredPath != "" {
-		if _, err := os.Stat(configuredPath); err == nil {
-			addInstalled(configuredPath, "selected", "Daad (selected)")
-		}
-	}
-	if systemPath, err := exec.LookPath("daad"); err == nil {
-		addInstalled(systemPath, "system", "Daad (system)")
-	}
-	if directory, err := a.interpreterDirectory(); err == nil {
+	addInstalled(configuredPath)
+	addInstalled(systemPath)
+	if directory != "" {
 		_ = filepath.WalkDir(directory, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return nil
+			if walkErr == nil && !entry.IsDir() && (entry.Name() == "daad" || entry.Name() == "daad.exe") {
+				addInstalled(path)
 			}
-			if entry.IsDir() || (entry.Name() != "daad" && entry.Name() != "daad.exe") {
-				return nil
-			}
-			addInstalled(path, "downloaded", "")
 			return nil
 		})
 	}
@@ -120,24 +128,100 @@ func (a *App) ListInterpreters(configuredPath string) ([]InterpreterOption, erro
 	if err != nil {
 		return options, nil
 	}
+	first := true
 	for _, release := range releases {
 		if _, err := selectInterpreterAsset(release.Assets); err != nil {
 			continue
 		}
-		installed := findInstalledRelease(options, release.TagName)
+		isLatest := first
+		first = false
+
+		// A release that is already installed is merged into that entry
+		// instead of being listed a second time.
+		merged := false
+		for i := range options {
+			if options[i].Installed && options[i].Version == release.TagName {
+				options[i].ReleaseTag = release.TagName
+				options[i].ReleaseURL = release.HTMLURL
+				options[i].Latest = isLatest
+				merged = true
+				break
+			}
+		}
+		if merged {
+			continue
+		}
 		options = append(options, InterpreterOption{
 			ID:         "release:" + release.TagName,
-			Label:      "Daad " + release.TagName + " (available)",
-			Path:       installed,
+			Label:      interpreterLabel(release.TagName),
 			Version:    release.TagName,
 			Source:     "release",
 			ReleaseTag: release.TagName,
 			ReleaseURL: release.HTMLURL,
-			Installed:  installed != "",
-			Selected:   installed != "" && installed == configuredPath,
+			Latest:     isLatest,
 		})
 	}
 	return options, nil
+}
+
+// GetInterpreterStatus reports, without touching the network, which
+// interpreter RunDaad would use: the configured one, else `daad` on PATH.
+func (a *App) GetInterpreterStatus(configuredPath string) InterpreterStatus {
+	systemPath, _ := exec.LookPath("daad")
+	directory, _ := a.interpreterDirectory()
+
+	path := configuredPath
+	if path == "" {
+		path = systemPath
+	}
+	if path == "" {
+		return InterpreterStatus{Reason: "not-installed"}
+	}
+	if info, err := os.Stat(path); err != nil || info.IsDir() {
+		return InterpreterStatus{Path: path, Reason: "missing-file"}
+	}
+	version := detectVersion(path)
+	return InterpreterStatus{
+		Found:   true,
+		Path:    path,
+		Version: version,
+		Label:   interpreterLabel(version),
+		Source:  interpreterSource(path, systemPath, directory),
+	}
+}
+
+func interpreterSource(path, systemPath, directory string) string {
+	switch {
+	case systemPath != "" && sameFile(path, systemPath):
+		return "system"
+	case directory != "" && isWithin(path, directory):
+		return "downloaded"
+	default:
+		return "custom"
+	}
+}
+
+func canonicalPath(path string) string {
+	if path == "" {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	if absolute, err := filepath.Abs(path); err == nil {
+		path = absolute
+	}
+	return filepath.Clean(path)
+}
+
+func sameFile(a, b string) bool {
+	return a != "" && b != "" && canonicalPath(a) == canonicalPath(b)
+}
+
+func isWithin(path, directory string) bool {
+	root := canonicalPath(directory)
+	target := canonicalPath(path)
+	return root != "" && strings.HasPrefix(target, root+string(filepath.Separator))
 }
 
 func (a *App) InterpreterDirectory() (string, error) {
@@ -152,7 +236,7 @@ func (a *App) GetInterpreterInfo(configuredPath string) (InterpreterInfo, error)
 
 	info := InterpreterInfo{Path: path}
 	if path != "" {
-		info.Version = interpreterVersion(path)
+		info.Version = detectVersion(path)
 	}
 
 	release, err := fetchLatestRelease()
@@ -166,7 +250,9 @@ func (a *App) GetInterpreterInfo(configuredPath string) (InterpreterInfo, error)
 }
 
 func (a *App) OpenExternalURL(url string) {
-	wailsruntime.BrowserOpenURL(a.ctx, url)
+	if err := application.Get().Browser.OpenURL(url); err != nil {
+		application.Get().Logger.Warn("could not open URL", "url", url, "error", err)
+	}
 }
 
 func (a *App) InstallLatestInterpreter() (string, error) {
@@ -237,22 +323,6 @@ func (a *App) interpreterDirectory() (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".daad-ide", "interpreters"), nil
-}
-
-func findInstalledRelease(options []InterpreterOption, releaseTag string) string {
-	for _, option := range options {
-		if option.Installed && strings.Contains(option.Path, string(filepath.Separator)+releaseTag+string(filepath.Separator)) {
-			return option.Path
-		}
-	}
-	return ""
-}
-
-func versionLabel(version string) string {
-	if version == "" {
-		return ""
-	}
-	return " - " + version
 }
 
 func fetchLatestRelease() (githubRelease, error) {
@@ -533,14 +603,6 @@ func downloadFile(url, path string) error {
 		return fmt.Errorf("failed to install interpreter: %w", err)
 	}
 	return nil
-}
-
-func interpreterVersion(path string) string {
-	output, err := exec.Command(path, "--version").CombinedOutput()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(output))
 }
 
 func resolveInterpreter(configuredPath string) (string, error) {

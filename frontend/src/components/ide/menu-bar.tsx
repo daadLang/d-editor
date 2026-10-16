@@ -1,4 +1,4 @@
-import { Play, Save } from "lucide-react"
+import { PanelRight, Play, Save } from "lucide-react"
 
 import { Shortcut } from "@/components/ide/shortcut"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,6 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar"
 import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { MOD } from "@/lib/platform"
@@ -25,9 +24,17 @@ import {
   saveActive,
   selectActiveTab,
   setPaletteOpen,
+  flipEditorLayout,
+  splitActiveGroup,
   toggleOutput,
   useIdeStore,
 } from "@/store/ide"
+import {
+  resetLayout,
+  togglePanelPosition,
+  toggleSidebar,
+  useLayoutStore,
+} from "@/store/layout"
 
 function Keys({ keys }: { keys: string[] }) {
   return <MenubarShortcut dir="ltr">{keys.join("+")}</MenubarShortcut>
@@ -37,7 +44,9 @@ export function MenuBar() {
   const folder = useIdeStore((state) => state.folder)
   const activeTab = useIdeStore(selectActiveTab)
   const running = useIdeStore((state) => state.output.running)
-  const { toggleSidebar } = useSidebar()
+  const panelPosition = useLayoutStore((state) => state.panelPosition)
+  const orientation = useLayoutStore((state) => state.editorOrientation)
+  const groupCount = useIdeStore((state) => state.groups.length)
 
   const isFile = activeTab?.type === "file"
   const canSave = isFile && activeTab.dirty
@@ -46,7 +55,14 @@ export function MenuBar() {
     <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-card px-2">
       <Tooltip>
         <TooltipTrigger asChild>
-          <SidebarTrigger />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="إظهار/إخفاء المستكشف"
+            onClick={toggleSidebar}
+          >
+            <PanelRight />
+          </Button>
         </TooltipTrigger>
         <TooltipContent>
           إظهار/إخفاء المستكشف <Shortcut keys={[MOD, "B"]} />
@@ -68,6 +84,12 @@ export function MenuBar() {
               onSelect={() => folder && openDialog({ kind: "new-file", dir: folder })}
             >
               ملف جديد…
+            </MenubarItem>
+            <MenubarItem
+              disabled={!folder}
+              onSelect={() => folder && openDialog({ kind: "new-folder", dir: folder })}
+            >
+              مجلد جديد…
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem disabled={!canSave} onSelect={() => void saveActive()}>
@@ -93,7 +115,22 @@ export function MenuBar() {
               نافذة الإخراج <Keys keys={[MOD, "`"]} />
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onSelect={openSettings}>
+            <MenubarItem disabled={!isFile} onSelect={splitActiveGroup}>
+              تقسيم المحرر <Keys keys={[MOD, "\\"]} />
+            </MenubarItem>
+            <MenubarItem disabled={groupCount < 2} onSelect={flipEditorLayout}>
+              {orientation === "horizontal"
+                ? "ترتيب المحررات عموديًا"
+                : "ترتيب المحررات جنبًا إلى جنب"}
+            </MenubarItem>
+            <MenubarItem onSelect={togglePanelPosition}>
+              {panelPosition === "bottom"
+                ? "نقل نافذة الإخراج إلى الجانب"
+                : "نقل نافذة الإخراج إلى الأسفل"}
+            </MenubarItem>
+            <MenubarItem onSelect={resetLayout}>إعادة ضبط التخطيط</MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onSelect={() => openSettings()}>
               الإعدادات <Keys keys={[MOD, "P"]} />
             </MenubarItem>
           </MenubarContent>

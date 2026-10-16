@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Download, ExternalLink, FolderOpen, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
@@ -31,24 +31,38 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { useThemeStore } from "@/lib/theme-store"
 import { THEMES } from "@/lib/themes"
 import { api, errorMessage, type InterpreterOption } from "@/lib/wails"
-import { updateSettings, useIdeStore } from "@/store/ide"
+import { clearSettingsFocus, updateSettings, useIdeStore } from "@/store/ide"
 
 const darkThemes = THEMES.filter((theme) => theme.category === "dark")
 const lightThemes = THEMES.filter((theme) => theme.category === "light")
 
+const DEFAULT_CHOICE = "__default__"
+
 function ThemeField() {
-  const theme = useIdeStore((state) => state.settings.theme)
+  const key = useThemeStore((state) => state.key)
+  const isDefault = useThemeStore((state) => state.isDefault)
 
   return (
     <Field>
       <FieldLabel htmlFor="theme">المظهر</FieldLabel>
-      <Select value={theme} onValueChange={(value) => void updateSettings({ theme: value })}>
+      <Select
+        value={isDefault ? DEFAULT_CHOICE : key}
+        onValueChange={(value) =>
+          void updateSettings({ theme: value === DEFAULT_CHOICE ? "" : value })
+        }
+      >
         <SelectTrigger id="theme" className="w-full max-w-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
+          <SelectGroup>
+            <SelectItem value={DEFAULT_CHOICE}>
+              افتراضي (ضاد، يتبع نمط النظام)
+            </SelectItem>
+          </SelectGroup>
           <SelectGroup>
             <SelectLabel>داكن</SelectLabel>
             {darkThemes.map((item) => (
@@ -108,21 +122,54 @@ function ProjectPathField() {
   )
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  system: "النظام",
+  downloaded: "مثبّت من IDE",
+  custom: "مخصص",
+}
+
+function OptionBadges({ option }: { option: InterpreterOption }) {
+  return (
+    <span className="ms-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      {option.installed ? (SOURCE_LABEL[option.source] ?? "مثبت") : "متاح للتنزيل"}
+      {option.latest && <Badge variant="secondary">الأحدث</Badge>}
+    </span>
+  )
+}
+
 function InterpreterSection() {
-  const interpreterPath = useIdeStore((state) => state.settings.interpreterPath)
+  const current = useIdeStore((state) => state.interpreter)
+  const focus = useIdeStore((state) => state.settingsFocus)
   const [options, setOptions] = useState<InterpreterOption[] | null>(null)
   const [selectedId, setSelectedId] = useState("")
   const [installing, setInstalling] = useState(false)
+  const sectionRef = useRef<HTMLDivElement>(null)
+
+  // Arriving from the "no interpreter" notification scrolls straight here.
+  useEffect(() => {
+    if (focus?.section !== "interpreter") return
+    sectionRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+    clearSettingsFocus()
+  }, [focus])
 
   const refresh = useCallback(async () => {
     setOptions(null)
+    // Read the live value: this callback is created once and must not use a
+    // stale path (e.g. right after installing a new interpreter).
+    const interpreterPath = useIdeStore.getState().settings.interpreterPath
     try {
       const list = await api.listInterpreters(interpreterPath)
       setOptions(list)
+      // Prefer what is in use; with nothing in use, offer the newest release so
+      // installing it is a single click.
       setSelectedId(
-        (list.find((o) => o.path && o.path === interpreterPath) ??
+        (
+          list.find((o) => o.path && o.path === interpreterPath) ??
           list.find((o) => o.selected) ??
-          list[0])?.id ?? ""
+          (interpreterPath ? undefined : list.find((o) => o.latest && !o.installed)) ??
+          list.find((o) => o.installed) ??
+          list[0]
+        )?.id ?? ""
       )
     } catch (error) {
       setOptions([])
@@ -130,7 +177,6 @@ function InterpreterSection() {
     }
     // Reload only when the page opens or the user presses refresh; choosing an
     // option changes `interpreterPath` and must not reshuffle the list.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -138,15 +184,15 @@ function InterpreterSection() {
   }, [refresh])
 
   const selected = options?.find((option) => option.id === selectedId)
-  const active = options?.find((option) => option.path && option.path === interpreterPath)
   const canInstall = Boolean(selected?.releaseTag) && !selected?.installed
+  const hasInstalled = options?.some((option) => option.installed) ?? false
 
   const choose = (id: string) => {
     setSelectedId(id)
     const option = options?.find((o) => o.id === id)
-    if (option?.path) {
+    if (option?.installed && option.path) {
       void updateSettings({ interpreterPath: option.path })
-      toast.success("تم اختيار المفسر", { duration: 1500 })
+      toast.success(`تم اختيار ${option.label}`, { duration: 1500 })
     }
   }
 
@@ -169,7 +215,7 @@ function InterpreterSection() {
       const path = await api.installInterpreter(selected.releaseTag)
       await updateSettings({ interpreterPath: path })
       await refresh()
-      toast.success("تم تثبيت المفسر وتعيينه كمفسر حالي")
+      toast.success(`تم تثبيت ${selected.label} وتعيينه كمفسر حالي`)
     } catch (error) {
       toast.error(`تعذر تثبيت المفسر: ${errorMessage(error)}`)
     } finally {
@@ -177,93 +223,114 @@ function InterpreterSection() {
     }
   }
 
+  const ready = current.status === "ready"
+
   return (
-    <FieldSet>
-      <FieldLegend>مفسر ضاد</FieldLegend>
-      <FieldDescription>
-        اختر مفسرًا مثبتًا أو إصدارًا مقترحًا لتنزيله من مستودع ضاد الرسمي.
-      </FieldDescription>
+    <div ref={sectionRef} className="scroll-mt-4">
+      <FieldSet>
+        <FieldLegend>مفسر ضاد</FieldLegend>
+        <FieldDescription>
+          اختر مفسرًا مثبتًا أو إصدارًا مقترحًا لتنزيله من مستودع ضاد الرسمي.
+        </FieldDescription>
 
-      <Alert variant={interpreterPath ? "default" : "destructive"} className="max-w-xl">
-        <AlertTitle className="flex items-center gap-2">
-          {interpreterPath ? "المفسر الحالي" : "لم يتم اختيار مفسر"}
-          {active?.version && (
-            <Badge variant="secondary" dir="ltr">
-              {active.version}
-            </Badge>
-          )}
-        </AlertTitle>
-        <AlertDescription
-          dir={interpreterPath ? "ltr" : undefined}
-          className="break-all text-start"
-        >
-          {interpreterPath || "اختر مفسرًا من القائمة لتتمكن من تشغيل البرامج."}
-        </AlertDescription>
-      </Alert>
+        <Alert variant={ready || current.status === "unknown" ? "default" : "destructive"} className="max-w-xl">
+          <AlertTitle className="flex items-center gap-2">
+            {ready ? "المفسر الحالي" : "لم يتم اختيار مفسر"}
+            {ready && (
+              <Badge variant="secondary" dir="ltr">
+                {current.label}
+              </Badge>
+            )}
+            {ready && current.source && SOURCE_LABEL[current.source] && (
+              <span className="text-xs font-normal text-muted-foreground">
+                {SOURCE_LABEL[current.source]}
+              </span>
+            )}
+          </AlertTitle>
+          <AlertDescription dir={ready ? "ltr" : undefined} className="break-all text-start">
+            {ready
+              ? current.path
+              : "اختر مفسرًا من القائمة لتتمكن من تشغيل البرامج."}
+          </AlertDescription>
+        </Alert>
 
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="interpreter">الإصدار</FieldLabel>
-          <div className="flex max-w-xl items-center gap-2">
-            <Select
-              value={selectedId}
-              onValueChange={choose}
-              disabled={options === null || options.length === 0}
-            >
-              <SelectTrigger id="interpreter" className="w-full">
-                {options === null ? (
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Spinner /> جارٍ تحميل المفسرات…
-                  </span>
-                ) : (
-                  <SelectValue placeholder="لم يتم العثور على مفسرات متوافقة" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {options?.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    <span dir="ltr">{option.label}</span>
-                    <span className="text-muted-foreground">
-                      {option.installed ? "· مثبت" : "· متاح للتنزيل"}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="interpreter">الإصدار</FieldLabel>
+            <div className="flex max-w-xl items-center gap-2">
+              <Select
+                value={selectedId}
+                onValueChange={choose}
+                disabled={options === null || options.length === 0}
+              >
+                <SelectTrigger id="interpreter" className="w-full">
+                  {options === null ? (
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Spinner /> جارٍ تحميل المفسرات…
                     </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              title="تحديث القائمة"
-              aria-label="تحديث القائمة"
-              disabled={options === null}
-              onClick={() => void refresh()}
-            >
-              <RefreshCw className={options === null ? "animate-spin" : undefined} />
-            </Button>
-          </div>
-        </Field>
+                  ) : (
+                    <SelectValue placeholder="لم يتم العثور على مفسرات متوافقة" />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {options?.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      <span dir="ltr">{option.label}</span>
+                      <OptionBadges option={option} />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                title="تحديث القائمة"
+                aria-label="تحديث القائمة"
+                disabled={options === null}
+                onClick={() => void refresh()}
+              >
+                <RefreshCw className={options === null ? "animate-spin" : undefined} />
+              </Button>
+            </div>
+            {options?.length === 0 && (
+              <FieldDescription>
+                تعذر جلب الإصدارات المتاحة. تحقق من اتصالك بالإنترنت أو اختر ملف المفسر يدويًا.
+              </FieldDescription>
+            )}
+          </Field>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button disabled={!canInstall || installing} onClick={() => void install()}>
-            {installing ? <Spinner /> : <Download />}
-            {installing ? "جارٍ التثبيت…" : "تثبيت المحدد"}
-          </Button>
-          <Button variant="outline" onClick={() => void pickFile()}>
-            <FolderOpen />
-            اختيار ملف…
-          </Button>
-          {selected?.releaseUrl && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="link"
-              onClick={() => void api.openExternalUrl(selected.releaseUrl)}
+              variant={hasInstalled ? "secondary" : "default"}
+              disabled={!canInstall || installing}
+              onClick={() => void install()}
             >
-              <ExternalLink />
-              صفحة الإصدار <span dir="ltr">{selected.releaseTag}</span>
+              {installing ? <Spinner /> : <Download />}
+              {installing ? (
+                "جارٍ التثبيت…"
+              ) : (
+                <>
+                  تثبيت <span dir="ltr">{selected?.label ?? "المحدد"}</span>
+                </>
+              )}
             </Button>
-          )}
-        </div>
-      </FieldGroup>
-    </FieldSet>
+            <Button variant="outline" onClick={() => void pickFile()}>
+              <FolderOpen />
+              اختيار ملف…
+            </Button>
+            {selected?.releaseUrl && (
+              <Button
+                variant="link"
+                onClick={() => void api.openExternalUrl(selected.releaseUrl)}
+              >
+                <ExternalLink />
+                صفحة الإصدار <span dir="ltr">{selected.releaseTag}</span>
+              </Button>
+            )}
+          </div>
+        </FieldGroup>
+      </FieldSet>
+    </div>
   )
 }
 

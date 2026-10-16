@@ -104,7 +104,7 @@ export function AppSidebar() {
             </SidebarMenuItem>
           )}
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={openSettings}>
+            <SidebarMenuButton onClick={() => openSettings()}>
               <Settings />
               الإعدادات
             </SidebarMenuButton>

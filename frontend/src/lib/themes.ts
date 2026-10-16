@@ -31,6 +31,8 @@ import {
   vsCodeLight,
 } from "@fsegurai/codemirror-theme-bundle"
 
+import { daadDarkEditor, daadLightEditor } from "@/lib/daad-theme"
+
 export type ThemeCategory = "dark" | "light"
 
 /** Colour tokens of an IDE theme. They are mapped onto shadcn CSS variables in `theme-store.ts`. */
@@ -58,6 +60,21 @@ export interface ThemeDefinition {
 }
 
 export const THEMES: ThemeDefinition[] = [
+  // The IDE's own look, built around the green of the logo.
+  {
+    key: "daadDark",
+    label: "Daad Dark",
+    category: "dark",
+    cm: daadDarkEditor,
+    palette: { bg: "#0e1511", bg2: "#121b16", bg3: "#18241d", hover: "#213227", text: "#e4eee8", text2: "#aebdb4", text3: "#7d9085", accent: "#47b243", accent2: "#34b6e2", success: "#47b243", border: "#24342b" },
+  },
+  {
+    key: "daadLight",
+    label: "Daad Light",
+    category: "light",
+    cm: daadLightEditor,
+    palette: { bg: "#fbfdfb", bg2: "#f0f6f1", bg3: "#e3eee6", hover: "#d6e7da", text: "#14211a", text2: "#43554a", text3: "#62756a", accent: "#277f25", accent2: "#47b243", success: "#277f25", border: "#cfe0d3" },
+  },
   {
     key: "abcdef",
     label: "Abcdef",
@@ -263,11 +280,24 @@ export const THEMES: ThemeDefinition[] = [
   },
 ];
 
-export const DEFAULT_THEME_KEY = "vsCodeDark"
+/**
+ * The theme used when the user has not picked one: Daad Light or Daad Dark,
+ * following the operating system's light/dark setting.
+ */
+export function defaultThemeKey(): string {
+  try {
+    return window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "daadLight"
+      : "daadDark"
+  } catch {
+    return "daadDark"
+  }
+}
 
+/** Resolves a saved key; an empty or unknown key means "use the default". */
 export function getTheme(key: string | undefined): ThemeDefinition {
   return (
     THEMES.find((theme) => theme.key === key) ??
-    THEMES.find((theme) => theme.key === DEFAULT_THEME_KEY)!
+    THEMES.find((theme) => theme.key === defaultThemeKey())!
   )
 }

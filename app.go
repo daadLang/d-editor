@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,11 +11,13 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
+// App holds the methods exposed to the frontend. Wails 3 binds every exported
+// method of a registered service, so helpers that must stay private are
+// unexported.
 type App struct {
-	ctx       context.Context
 	process   *exec.Cmd
 	stdin     io.WriteCloser
 	processMu sync.Mutex
@@ -29,8 +30,6 @@ type FileEntry struct {
 }
 
 func NewApp() *App { return &App{} }
-
-func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
 func (a *App) ReadDirectory(dirPath string) ([]FileEntry, error) {
 	entries, err := os.ReadDir(dirPath)
@@ -73,6 +72,14 @@ func (a *App) CreateFile(filePath string) error {
 	return file.Close()
 }
 
+// CreateDirectory makes a single new folder; it fails if the name is taken.
+func (a *App) CreateDirectory(dirPath string) error {
+	if err := os.Mkdir(dirPath, 0755); err != nil {
+		return fmt.Errorf("failed to create folder: %w", err)
+	}
+	return nil
+}
+
 func (a *App) DeletePath(targetPath string) error {
 	if err := os.RemoveAll(targetPath); err != nil {
 		return fmt.Errorf("failed to delete: %w", err)
@@ -88,7 +95,12 @@ func (a *App) RenamePath(oldPath, newPath string) error {
 }
 
 func (a *App) OpenFolderDialog() (string, error) {
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Open folder"})
+	return application.Get().Dialog.OpenFile().
+		SetTitle("Open folder").
+		CanChooseFiles(false).
+		CanChooseDirectories(true).
+		CanCreateDirectories(true).
+		PromptForSingleSelection()
 }
 
 func (a *App) SelectProjectPath() (string, error) { return a.OpenFolderDialog() }
@@ -128,7 +140,9 @@ func (a *App) ReadSettings() (map[string]string, error) {
 	content, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		home, _ := os.UserHomeDir()
-		return map[string]string{"projectPath": filepath.Join(home, "Documents"), "theme": "vsCodeDark", "themeCategory": "dark"}, nil
+		// No "theme" key: until the user picks one, the frontend falls back to
+		// Daad Light/Dark according to the operating system setting.
+		return map[string]string{"projectPath": filepath.Join(home, "Documents")}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -199,7 +213,7 @@ func (a *App) RunDaad(filePath, interpreterPath string) (map[string]interface{},
 				outputMu.Lock()
 				*target += chunk
 				outputMu.Unlock()
-				runtime.EventsEmit(a.ctx, "daad-output", map[string]string{"type": kind, "data": chunk})
+				application.Get().Event.Emit("daad-output", map[string]string{"type": kind, "data": chunk})
 			}
 			if readErr != nil {
 				return
