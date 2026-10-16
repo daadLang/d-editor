@@ -14,8 +14,9 @@ HOST_ARCH     := $(shell uname -m)
 # Targets for `make build-all`, as <os>/<arch>. Windows is cross-compiled with
 # plain Go; Linux/macOS use the Docker image from `make setup-docker`.
 #   make build-all PLATFORMS="windows/amd64 linux/amd64"
-# linux/arm64 is left out of the default set (emulated, slow); add it if needed.
-PLATFORMS    ?= windows/amd64 windows/arm64 linux/amd64 darwin/arm64 darwin/amd64
+# linux/arm64 is left out of the default set (emulated, slow); the release
+# workflow explicitly adds it to produce every artifact GoReleaser packages.
+PLATFORMS    ?= windows/amd64 windows/arm64 linux/amd64 linux/arm64 darwin/arm64 darwin/amd64
 ALL_TARGETS  := windows/amd64 windows/arm64 linux/amd64 linux/arm64 darwin/arm64 darwin/amd64
 
 .DEFAULT_GOAL := help
@@ -34,8 +35,8 @@ ALL_TARGETS  := windows/amd64 windows/arm64 linux/amd64 linux/arm64 darwin/arm64
 # $(call exe,<os>) -> ".exe" on Windows, empty otherwise
 exe = $(if $(filter windows,$(1)),.exe)
 
-# $(call build_one,<os>,<arch>): build one target and move the result into
-# $(DIST_DIR), since every platform writes to the same $(BIN_DIR)/$(APP_NAME).
+# $(call build_one,<os>,<arch>): build one target and move the descriptive,
+# platform-specific result into $(DIST_DIR) for GoReleaser to package.
 define build_one
 	@echo "==> Building $(1)/$(2)"
 	$(WAILS3) build GOOS=$(1) GOARCH=$(2)

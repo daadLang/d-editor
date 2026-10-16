@@ -1,0 +1,23 @@
+{
+  "name": "d-editor",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Release tooling for d-editor (semantic-release)",
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.8",
+    "semantic-release": "^25.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daadLang/d-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/daadLang/d-editor/issues"
+  },
+  "homepage": "https://github.com/daadLang/d-editor#readme"
+}

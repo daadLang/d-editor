@@ -27,3 +27,4 @@ release
 *~
 .eslintcache
 -.o
+dist/

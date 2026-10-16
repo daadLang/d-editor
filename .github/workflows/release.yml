@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - feature/editor-groups-and-interpreter-ux
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # Switch to `npm ci` (and add `cache: npm` above) once package-lock.json is committed.
+      - name: Install release tooling
+        run: npm install --no-audit --no-fund
+
+      # Tags the commit, updates CHANGELOG.md and creates the GitHub release.
+      # Stable versions come from main, X.Y.Z-beta.N from the feature branch.
+      - name: Semantic release
+        id: semrel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+      # Everything below only runs when semantic-release actually published a version.
+      - name: Check out the release tag
+        if: steps.semrel.outputs.released == 'true'
+        run: |
+          git fetch --tags --force
+          git checkout "${{ steps.semrel.outputs.tag }}"
+
+      # TODO: add the toolchain `make build-all` needs if it is not Go-only.
+      - name: Setup Go
+        if: steps.semrel.outputs.released == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        if: steps.semrel.outputs.released == 'true'
+        run: make build-all PLATFORMS="windows/amd64 windows/arm64 linux/amd64 linux/arm64 darwin/arm64 darwin/amd64"
+
+      - name: Package and upload with GoReleaser
+        if: steps.semrel.outputs.released == 'true'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

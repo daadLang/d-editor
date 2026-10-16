@@ -1,0 +1,124 @@
+version: 2
+
+project_name: daad-ide
+
+# Binaries are produced by `make build-all` (see the release workflow), not by GoReleaser.
+# GoReleaser only packages them, so the build step is skipped and each platform gets
+# its own archive made from the files `make build-all` wrote.
+#
+# `make build-all` writes release/daad-ide-<os>-<arch>[.exe].
+builds:
+  - skip: true
+
+archives:
+  - id: linux-amd64
+    meta: true
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64"
+    files:
+      - src: release/daad-ide-linux-amd64
+        strip_parent: true
+  - id: linux-arm64
+    meta: true
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_linux_arm64"
+    files:
+      - src: release/daad-ide-linux-arm64
+        strip_parent: true
+  - id: darwin-amd64
+    meta: true
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_amd64"
+    files:
+      - src: release/daad-ide-darwin-amd64
+        strip_parent: true
+  - id: darwin-arm64
+    meta: true
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_arm64"
+    files:
+      - src: release/daad-ide-darwin-arm64
+        strip_parent: true
+  - id: windows-amd64
+    meta: true
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_windows_amd64"
+    files:
+      - src: release/daad-ide-windows-amd64.exe
+        strip_parent: true
+  - id: windows-arm64
+    meta: true
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_windows_arm64"
+    files:
+      - src: release/daad-ide-windows-arm64.exe
+        strip_parent: true
+
+nfpms:
+  - id: linux-amd64-packages
+    meta: true
+    package_name: daad-ide
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_linux_amd64{{ .ConventionalExtension }}"
+    formats: [deb, rpm, apk]
+    maintainer: "daadLang <amarbouakaz91@gmail.com>"
+    description: "Minimal IDE for the Daad Arabic programming language"
+    homepage: "https://github.com/daadLang/d-editor"
+    license: "MIT"
+    contents:
+      - src: release/daad-ide-linux-amd64
+        dst: /usr/bin/daad-ide
+      - src: build/appicon.png
+        dst: /usr/share/icons/hicolor/128x128/apps/daad-ide.png
+      - src: build/linux/daad-ide.desktop
+        dst: /usr/share/applications/daad-ide.desktop
+    dependencies:
+      - libgtk-4-1
+      - libwebkitgtk-6.0-4
+    overrides:
+      rpm:
+        dependencies:
+          - gtk4
+          - webkitgtk6.0
+
+  - id: linux-arm64-packages
+    meta: true
+    package_name: daad-ide
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_linux_arm64{{ .ConventionalExtension }}"
+    formats: [deb, rpm, apk]
+    maintainer: "daadLang <amarbouakaz91@gmail.com>"
+    description: "Minimal IDE for the Daad Arabic programming language"
+    homepage: "https://github.com/daadLang/d-editor"
+    license: "MIT"
+    contents:
+      - src: release/daad-ide-linux-arm64
+        dst: /usr/bin/daad-ide
+      - src: build/appicon.png
+        dst: /usr/share/icons/hicolor/128x128/apps/daad-ide.png
+      - src: build/linux/daad-ide.desktop
+        dst: /usr/share/applications/daad-ide.desktop
+    dependencies:
+      - libgtk-4-1
+      - libwebkitgtk-6.0-4
+    overrides:
+      rpm:
+        dependencies:
+          - gtk4
+          - webkitgtk6.0
+          
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+# semantic-release already created the GitHub release and its notes.
+# GoReleaser only attaches the packaged assets to it.
+release:
+  github:
+    owner: daadLang
+    name: d-editor
+  mode: keep-existing
+  prerelease: auto
+
+changelog:
+  disable: true
