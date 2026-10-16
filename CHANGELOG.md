@@ -3,6 +3,10 @@
 ### Features
 
 * add release workflow and configuration for semantic-release ([270900e](https://github.com/daadLang/d-editor/commit/270900e96ded162e0930f5660e4ff1137f1dce37))
+* add multi windows support  ([23e6f274](https://github.com/daadLang/d-editor/commit/23e6f274a98b5960aded485d0bdc1e4ff89b95d4))
+* add resizable components ([23e6f274](https://github.com/daadLang/d-editor/commit/23e6f274a98b5960aded485d0bdc1e4ff89b95d4))
+* add daad themes ([23e6f274](https://github.com/daadLang/d-editor/commit/23e6f274a98b5960aded485d0bdc1e4ff89b95d4))
+* inhance file explorer ([23e6f274](https://github.com/daadLang/d-editor/commit/23e6f274a98b5960aded485d0bdc1e4ff89b95d4))
 
 ### Bug Fixes
 
