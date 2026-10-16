@@ -60,6 +60,12 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install Wails system dependencies
+        if: steps.semrel.outputs.released == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+
       - name: Install Wails CLI
         if: steps.semrel.outputs.released == 'true'
         run: |
