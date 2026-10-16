@@ -5,6 +5,12 @@ on:
     branches:
       - main
       - beta
+    paths:
+      - 'frontend/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '*.go'
+      - '.github/workflows/release.yml'
 
 concurrency:
   group: release-${{ github.ref }}
