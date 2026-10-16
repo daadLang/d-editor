@@ -5,7 +5,7 @@
  * (`Call.ByName("main.App.<Method>")`). Bound methods are addressed by name, so
  * no generated bindings are needed and the file stays in sync with the Go side
  * simply by method name. When the page is opened in a plain browser
- * (`yarn dev:frontend`) there is no backend, so a small in-memory mock is used
+ * (`make dev-frontend`) there is no backend, so a small in-memory mock is used
  * instead, which makes UI work possible without starting the desktop shell.
  */
 import { Call, Events } from "@wailsio/runtime"

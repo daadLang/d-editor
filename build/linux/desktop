@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=ض IDE
+Comment=Minimal IDE for the Daad Arabic programming language
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/daad-ide %u
+Terminal=false
+Type=Application
+Icon=daad-ide
+Categories=Utility;
+StartupWMClass=daad-ide
+
+ 

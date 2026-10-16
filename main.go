@@ -8,13 +8,14 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// The production frontend (`yarn build:frontend`) is written to dist/renderer.
+// The production frontend (built by `wails3 build`, or `yarn build` inside
+// frontend/) is written to frontend/dist and embedded into the binary here.
 //
-//go:embed all:dist/renderer
+//go:embed all:frontend/dist
 var embeddedAssets embed.FS
 
 func main() {
-	assets, err := fs.Sub(embeddedAssets, "dist/renderer")
+	assets, err := fs.Sub(embeddedAssets, "frontend/dist")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,59 +1,70 @@
-# Task runner file used by the Wails 3 CLI (`wails3 dev`, `wails3 build`).
-# `wails3 task <name>` runs any task below; the CLI bundles Task, so there is
-# nothing else to install.
-version: "3"
+version: '3'
 
 vars:
-  APP_NAME: daad-ide
-  BIN_DIR: bin
+  APP_NAME: "daad-ide"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "yarn"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
-  EXE: '{{if eq OS "windows"}}.exe{{end}}'
+  # Target OS for build/package/run. Defaults to the host OS, and is overridden
+  # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
+  # tasks below dispatch to the matching platform Taskfile via this variable.
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  ios: ./build/ios/Taskfile.yml
+  android: ./build/android/Taskfile.yml
 
 tasks:
-  install:frontend:deps:
-    summary: Installs the frontend dependencies
-    run: once
-    sources:
-      - package.json
-      - yarn.lock
-    status:
-      - test -d node_modules
-    cmds:
-      - yarn install
-
-  build:frontend:
-    summary: Builds the frontend into dist/renderer (embedded by main.go)
-    run: once
-    deps:
-      - install:frontend:deps
-    cmds:
-      - yarn build:frontend
-
   build:
-    summary: Builds the application into bin/. Pass DEV=true for a debug build.
-    deps:
-      - build:frontend
-    vars:
-      BUILD_FLAGS: '{{if eq (.DEV | default "false") "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="{{if eq OS "windows"}}-H windowsgui {{end}}-w -s"{{end}}'
-    env:
-      # Linux and macOS use the system webview through cgo; Windows does not.
-      CGO_ENABLED: '{{if eq OS "windows"}}0{{else}}1{{end}}'
+    summary: Builds the application
     cmds:
-      - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}{{.EXE}}
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
 
   run:
-    summary: Runs the built application
+    summary: Runs the application
     cmds:
-      - '{{.BIN_DIR}}/{{.APP_NAME}}{{.EXE}}'
-
-  dev:frontend:
-    summary: Starts the Vite dev server on the port chosen by `wails3 dev`
-    deps:
-      - install:frontend:deps
-    cmds:
-      - yarn dev:frontend --port {{.VITE_PORT}} --strictPort
+      - task: "{{.GOOS}}:run"
 
   dev:
-    summary: Runs the application in development mode (hot reload)
+    summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  install:msix:tools:
+    summary: Installs tools required for Windows MSIX packaging
+    cmds:
+      - task: windows:install:msix:tools
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    cmds:
+      - task: common:setup:docker
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    cmds:
+      - task: common:build:server
+
+  run:server:
+    summary: Runs the application in server mode
+    cmds:
+      - task: common:run:server
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    cmds:
+      - task: common:build:docker
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    cmds:
+      - task: common:run:docker

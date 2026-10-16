@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=daad-ide
+Exec=daad-ide
+Icon=daad-ide
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false
