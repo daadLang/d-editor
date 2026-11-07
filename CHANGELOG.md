@@ -1,3 +1,19 @@
+## [0.4.0](https://github.com/daadLang/d-editor/compare/v0.3.0...v0.4.0) (2026-11-07)
+
+### Features
+
+* implement sidebar host and extension API ([11274c1](https://github.com/daadLang/d-editor/commit/11274c103eff79b5debb5dd78e0e9bcde9dab70d))
+
+### Bug Fixes
+
+* update .gitignore to include *.patch files ([d9c6339](https://github.com/daadLang/d-editor/commit/d9c6339b794957092b10fbc0cf9b6ca4484d0adb))
+* update WAILS_VERSION to stable release v3.0.0 ([a24597b](https://github.com/daadLang/d-editor/commit/a24597b755ac16d6ff636be31c3e81e68773839c))
+
+### CI/CD
+
+* add release filters ([fe2df5f](https://github.com/daadLang/d-editor/commit/fe2df5f87d0442b338dc4d2c3a493e417f421b0e))
+* inhance release pipline ([1d8f39b](https://github.com/daadLang/d-editor/commit/1d8f39b9abee45b1718afc4420e67acc8c5d8389))
+
 ## [0.3.0](https://github.com/daadLang/d-editor/compare/v0.2.0...v0.3.0) (2026-10-16)
 
 ### Features
