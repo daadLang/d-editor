@@ -25,7 +25,7 @@ import {
 const SHORTCUTS: { label: string; keys: string[] }[] = [
   { label: "تشغيل", keys: ["F5"] },
   { label: "حفظ", keys: [MOD, "S"] },
-  { label: "إظهار المستكشف", keys: [MOD, "B"] },
+  { label: "إظهار الشريط الجانبي", keys: [MOD, "B"] },
   { label: "تقسيم المحرر", keys: [MOD, "\\"] },
   { label: "نافذة الإخراج", keys: [MOD, "`"] },
   { label: "الإعدادات", keys: [MOD, "P"] },

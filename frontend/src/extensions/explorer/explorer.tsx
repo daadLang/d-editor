@@ -4,10 +4,9 @@ import {
   FolderOpen,
   FolderPlus,
   RefreshCw,
-  Settings,
 } from "lucide-react"
 
-import { FileTree } from "@/components/ide/file-tree"
+import { FileTree } from "@/extensions/explorer/file-tree"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -24,13 +23,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { useLogo } from "@/hooks/use-logo"
 import { basename } from "@/lib/path"
 import {
   collapseAllFolders,
   openDialog,
   openFolder,
-  openSettings,
   refreshTree,
   useIdeStore,
 } from "@/store/ide"
@@ -59,18 +56,9 @@ function HeaderAction({
 /** The file explorer, shown in the resizable side panel. */
 export function Explorer() {
   const folder = useIdeStore((state) => state.folder)
-  const logo = useLogo()
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex shrink-0 items-center gap-2.5 px-4 py-3">
-        <img src={logo} alt="" className="size-8 object-contain" />
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold">ض IDE</span>
-          <span className="text-xs text-muted-foreground">لغة ضاد</span>
-        </div>
-      </div>
-
       <div className="flex h-8 shrink-0 items-center gap-1 ps-4 pe-2">
         <span className="bidi-plaintext min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/70">
           {folder ? basename(folder) : "المستكشف"}
@@ -143,12 +131,6 @@ export function Explorer() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => openSettings()}>
-              <Settings />
-              الإعدادات
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         </SidebarMenu>
       </div>
     </aside>

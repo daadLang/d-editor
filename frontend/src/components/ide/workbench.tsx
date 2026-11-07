@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react"
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels"
 
+import { ActivityBar } from "@/components/ide/activity-bar"
 import { EditorLayout } from "@/components/ide/editor-layout"
-import { Explorer } from "@/components/ide/explorer"
 import { MenuBar } from "@/components/ide/menu-bar"
 import { OutputPanel } from "@/components/ide/output-panel"
+import { SidebarHost } from "@/components/ide/sidebar-host"
 import { StatusBar } from "@/components/ide/status-bar"
 import {
   ResizableHandle,
@@ -117,7 +118,7 @@ function Center() {
   )
 }
 
-/** The whole window: explorer panel on one side, everything else on the other. */
+/** The whole window: activity bar and side bar on the start side, everything else beside them. */
 export function Workbench() {
   const sidebarOpen = useLayoutStore((state) => state.sidebarOpen)
   const resetCount = useLayoutStore((state) => state.resetCount)
@@ -139,40 +140,44 @@ export function Workbench() {
   }, [resetCount])
 
   return (
-    <ResizablePanelGroup
-      key={resetCount}
-      id="daad:main"
-      orientation="horizontal"
-      defaultLayout={persisted.defaultLayout}
-      onLayoutChanged={persisted.onLayoutChanged}
-    >
-      <ResizablePanel id="main" minSize="35%" className="min-w-0">
-        <div className="flex h-full min-w-0 flex-col">
-          <MenuBar />
-          <Center key={resetCount} />
-          <StatusBar />
-        </div>
-      </ResizablePanel>
-
-      <ResizableHandle />
-
-      <ResizablePanel
-        id="sidebar"
-        panelRef={sidebarRef}
-        defaultSize="280px"
-        minSize="200px"
-        maxSize="50%"
-        collapsible
-        collapsedSize="0px"
-        className="min-w-0"
-        onResize={(size) => {
-          if (!ready.current) return
-          const open = size.asPercentage > 0
-          if (open !== useLayoutStore.getState().sidebarOpen) setSidebarOpen(open)
-        }}
+    <div className="flex h-full min-h-0 w-full min-w-0">
+      <ActivityBar />
+      <ResizablePanelGroup
+        key={resetCount}
+        id="daad:main"
+        className="min-w-0 flex-1"
+        orientation="horizontal"
+        defaultLayout={persisted.defaultLayout}
+        onLayoutChanged={persisted.onLayoutChanged}
       >
-        <Explorer />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        <ResizablePanel id="main" minSize="35%" className="min-w-0">
+          <div className="flex h-full min-w-0 flex-col">
+            <MenuBar />
+            <Center key={resetCount} />
+            <StatusBar />
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        <ResizablePanel
+          id="sidebar"
+          panelRef={sidebarRef}
+          defaultSize="280px"
+          minSize="200px"
+          maxSize="50%"
+          collapsible
+          collapsedSize="0px"
+          className="min-w-0"
+          onResize={(size) => {
+            if (!ready.current) return
+            const open = size.asPercentage > 0
+            if (open !== useLayoutStore.getState().sidebarOpen) setSidebarOpen(open)
+          }}
+        >
+          <SidebarHost />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   )
 }

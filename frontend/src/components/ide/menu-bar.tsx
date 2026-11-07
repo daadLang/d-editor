@@ -58,14 +58,14 @@ export function MenuBar() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="إظهار/إخفاء المستكشف"
+            aria-label="إظهار/إخفاء الشريط الجانبي"
             onClick={toggleSidebar}
           >
             <PanelRight />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          إظهار/إخفاء المستكشف <Shortcut keys={[MOD, "B"]} />
+          إظهار/إخفاء الشريط الجانبي <Shortcut keys={[MOD, "B"]} />
         </TooltipContent>
       </Tooltip>
 
@@ -109,7 +109,7 @@ export function MenuBar() {
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onSelect={toggleSidebar}>
-              المستكشف <Keys keys={[MOD, "B"]} />
+              الشريط الجانبي <Keys keys={[MOD, "B"]} />
             </MenubarItem>
             <MenubarItem onSelect={toggleOutput}>
               نافذة الإخراج <Keys keys={[MOD, "`"]} />
