@@ -2,7 +2,7 @@ import {
   Annotation,
   Transaction,
   type ChangeSet,
-  type EditorState,
+  EditorState,
 } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 
@@ -18,6 +18,34 @@ import { EditorView } from "@codemirror/view"
  * When the same file is open in more than one group, edits made in one are
  * replayed into the others (`broadcast`) so the views never drift apart.
  */
+
+/** A place in a file: 1-based line and column (UTF-16 units), optional length. */
+export interface RevealTarget {
+  line: number
+  column: number
+  length?: number
+}
+
+/** Reveals waiting for a file to be shown in its group (see `revealAt`). */
+const pendingReveals = new Map<string, RevealTarget>()
+
+/**
+ * Text of files that are open but not shown in any group yet, changed by
+ * `applyEdits`. `getText` returns it, so showing or saving the file uses it.
+ */
+const staged = new Map<string, string>()
+
+function applyReveal(view: EditorView, target: RevealTarget) {
+  const { doc } = view.state
+  const line = doc.line(Math.min(Math.max(target.line, 1), doc.lines))
+  const from = Math.min(line.from + Math.max(target.column - 1, 0), line.to)
+  const to = Math.min(from + Math.max(target.length ?? 0, 0), line.to)
+  view.dispatch({
+    selection: { anchor: from, head: to },
+    effects: EditorView.scrollIntoView(from, { y: "center" }),
+  })
+  view.focus()
+}
 
 /** Marks transactions that were replayed from another view of the same file. */
 export const remoteSync = Annotation.define<boolean>()
@@ -114,10 +142,26 @@ export const editorRegistry = {
 
     entry.view.setState(next)
     entry.shownId = fileId
+    const pending = pendingReveals.get(fileId)
+    if (pending) {
+      pendingReveals.delete(fileId)
+      applyReveal(entry.view, pending)
+      return
+    }
     // setState resets the scroll position; bring the cursor back into view.
     entry.view.dispatch({
       effects: EditorView.scrollIntoView(next.selection.main.head, { y: "center" }),
     })
+  },
+
+  /**
+   * Selects a range and scrolls to it. When the group is not showing the file
+   * yet (it was just opened), the reveal runs as soon as `show` displays it.
+   */
+  revealAt(groupId: string, fileId: string, target: RevealTarget) {
+    const entry = views.get(groupId)
+    if (entry && entry.shownId === fileId) applyReveal(entry.view, target)
+    else pendingReveals.set(fileId, target)
   },
 
   focus(groupId: string) {
@@ -136,7 +180,55 @@ export const editorRegistry = {
     for (const [k, state] of states) {
       if (fileOf(k) === fileId) return state.doc.toString()
     }
-    return orphans.get(fileId)?.doc.toString()
+    return orphans.get(fileId)?.doc.toString() ?? staged.get(fileId)
+  },
+
+  /**
+   * Applies replacements (1-based line/column in UTF-16 units, relative to the
+   * text as it is now) to an open file as ordinary, undoable edits. Returns
+   * false when the file is not open anywhere.
+   */
+  applyEdits(
+    fileId: string,
+    edits: { line: number; column: number; length: number; text: string }[],
+    /** Text of the file when no editor holds it yet (the tab's saved text). */
+    fallbackText?: string
+  ): boolean {
+    const toChanges = (doc: EditorState["doc"]) =>
+      edits.map((e) => {
+        const line = doc.line(Math.min(Math.max(e.line, 1), doc.lines))
+        const from = Math.min(line.from + e.column - 1, line.to)
+        return { from, to: Math.min(from + e.length, line.to), insert: e.text }
+      })
+
+    // A live view: its update listener marks the file dirty and replays the
+    // change into every other view of the file.
+    for (const { view, shownId } of views.values()) {
+      if (shownId !== fileId) continue
+      view.dispatch({ changes: toChanges(view.state.doc), userEvent: "input.replace" })
+      return true
+    }
+    let applied = false
+    for (const [k, state] of states) {
+      if (fileOf(k) !== fileId) continue
+      states.set(k, state.update({ changes: toChanges(state.doc), userEvent: "input.replace" }).state)
+      applied = true
+    }
+    const orphan = orphans.get(fileId)
+    if (orphan) {
+      orphans.set(fileId, orphan.update({ changes: toChanges(orphan.doc), userEvent: "input.replace" }).state)
+      applied = true
+    }
+    if (!applied && fallbackText !== undefined) {
+      const base = staged.get(fileId) ?? fallbackText
+      const doc = EditorState.create({ doc: base }).doc
+      staged.set(
+        fileId,
+        EditorState.create({ doc: base }).update({ changes: toChanges(doc) }).state.doc.toString()
+      )
+      applied = true
+    }
+    return applied
   },
 
   /** Replays a change made in `groupId` into every other view of the file. */
@@ -179,6 +271,8 @@ export const editorRegistry = {
   /** Forgets a file everywhere (it was closed, deleted or renamed away). */
   discard(fileId: string) {
     orphans.delete(fileId)
+    pendingReveals.delete(fileId)
+    staged.delete(fileId)
     for (const k of [...states.keys()]) if (fileOf(k) === fileId) states.delete(k)
     for (const entry of views.values()) {
       if (entry.shownId === fileId) entry.shownId = null
@@ -195,6 +289,11 @@ export const editorRegistry = {
       if (fileOf(k) !== from) continue
       states.delete(k)
       states.set(key(groupOf(k), to), state)
+    }
+    const stagedText = staged.get(from)
+    if (stagedText !== undefined) {
+      staged.delete(from)
+      staged.set(to, stagedText)
     }
     for (const entry of views.values()) {
       if (entry.shownId === from) entry.shownId = to

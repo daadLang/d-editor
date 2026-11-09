@@ -11,6 +11,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/daadLang/d-editor/internal/extensions"
+	"github.com/daadLang/d-editor/internal/search"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -21,6 +23,9 @@ type App struct {
 	process   *exec.Cmd
 	stdin     io.WriteCloser
 	processMu sync.Mutex
+
+	searches   *search.Manager
+	extensions *extensions.Manager
 }
 
 type FileEntry struct {
@@ -29,7 +34,16 @@ type FileEntry struct {
 	IsDirectory bool   `json:"isDirectory"`
 }
 
-func NewApp() *App { return &App{} }
+func NewApp() *App {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.TempDir()
+	}
+	return &App{
+		searches:   search.NewManager(),
+		extensions: extensions.NewManager(filepath.Join(home, ".daad-ide"), builtinExtensions),
+	}
+}
 
 func (a *App) ReadDirectory(dirPath string) ([]FileEntry, error) {
 	entries, err := os.ReadDir(dirPath)

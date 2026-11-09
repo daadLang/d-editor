@@ -1,0 +1,10 @@
+{
+  "id": "hello",
+  "name": "مرحبًا (تجريبية)",
+  "version": "1.0.0",
+  "description": "إضافة تجريبية تضيف لوحة في الشريط الجانبي وأمرًا في لوحة الأوامر.",
+  "main": "index.js",
+  "styles": ["hello.css"],
+  "permissions": ["workspace.read"],
+  "api": 1
+}

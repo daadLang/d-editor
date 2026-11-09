@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 
+import { ConfirmHost } from "@/components/ide/confirm-host"
 import { AppDialogs } from "@/components/ide/dialogs"
 import { CommandPalette } from "@/components/ide/command-palette"
 import { Workbench } from "@/components/ide/workbench"
@@ -19,6 +20,7 @@ function Shell() {
       <Workbench />
       <CommandPalette />
       <AppDialogs />
+      <ConfirmHost />
     </>
   )
 }

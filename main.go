@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net/http"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -20,16 +21,26 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ide := NewApp()
+
+	// Installed extensions are loaded from /_ext/<id>/..., served by Go from
+	// the user's extensions folder. It is the app's own origin, so the strict
+	// Content-Security-Policy (script-src 'self') still holds. Everything else
+	// is the embedded frontend.
+	mux := http.NewServeMux()
+	mux.Handle("/_ext/", ide.extensions.Handler())
+	mux.Handle("/", application.AssetFileServerFS(assets))
+
 	app := application.New(application.Options{
 		Name:        "ض IDE",
 		Description: "Minimal IDE for the Daad Arabic programming language",
 		// Every exported method of App becomes callable from the frontend
 		// (see frontend/src/lib/wails.ts).
 		Services: []application.Service{
-			application.NewService(NewApp()),
+			application.NewService(ide),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			Handler: mux,
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,

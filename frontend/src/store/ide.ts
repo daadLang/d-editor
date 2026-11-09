@@ -1,7 +1,7 @@
 import { toast } from "sonner"
 import { create } from "zustand"
 
-import { editorRegistry } from "@/lib/editor-registry"
+import { editorRegistry, type RevealTarget } from "@/lib/editor-registry"
 import { basename, isInside, joinPath } from "@/lib/path"
 import { addRecentProject, getRecentProjects } from "@/lib/recent"
 import { applyTheme, useThemeStore } from "@/lib/theme-store"
@@ -513,8 +513,14 @@ async function ensureDocument(path: string): Promise<boolean> {
   }
 }
 
-export async function openFile(path: string, groupId = get().activeGroupId) {
-  if (await ensureDocument(path)) reveal(path, groupId)
+export async function openFile(
+  path: string,
+  groupId = get().activeGroupId,
+  at?: RevealTarget
+) {
+  if (!(await ensureDocument(path))) return
+  reveal(path, groupId)
+  if (at) editorRegistry.revealAt(groupId, path, at)
 }
 
 export function openSettings(section?: SettingsSection) {

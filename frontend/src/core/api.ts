@@ -16,9 +16,56 @@ import type {
 } from "@/core/commands"
 import type { Disposable, Observable } from "@/core/disposable"
 import type { SidebarView } from "@/core/views"
-import type { FileEntry } from "@/lib/wails"
+import type { ConfirmOptions } from "@/core/confirm"
+import type { ReplaceResult, SearchQuery } from "@/core/find-text"
+import type { RevealTarget } from "@/lib/editor-registry"
+import type {
+  FileEntry,
+  RegistryEntry,
+  ReplaceTarget,
+  SearchFileResult,
+  SearchMatch,
+  SearchSummary,
+} from "@/lib/wails"
 
-export type { CommandHandler, CommandOptions, Disposable, Observable, SidebarView, FileEntry }
+/** Version of the extension API this IDE offers (matches Go's extensions.APIVersion). */
+export const API_VERSION = 1
+
+export type {
+  CommandHandler,
+  CommandOptions,
+  ConfirmOptions,
+  Disposable,
+  FileEntry,
+  Observable,
+  RegistryEntry,
+  ReplaceResult,
+  ReplaceTarget,
+  RevealTarget,
+  SearchFileResult,
+  SearchMatch,
+  SearchQuery,
+  SearchSummary,
+  SidebarView,
+}
+
+/** An extension as the extension manager knows it. */
+export interface ExtensionInfo {
+  id: string
+  name: string
+  version: string
+  description?: string
+  authors?: string[]
+  repository?: string
+  permissions?: string[]
+  source: "builtin" | "installed" | "dev"
+  enabled: boolean
+  status: "active" | "inactive" | "failed"
+  /** Why it is not running, when it failed. */
+  error?: string
+  /** Built-in extensions that cannot be disabled (the store itself). */
+  locked?: boolean
+}
 
 export interface ExtensionManifest {
   id: string
@@ -58,10 +105,48 @@ export interface ExtensionContext {
   }
 
   editor: {
-    openFile(path: string): Promise<void>
+    /** Opens a file, optionally scrolling to a 1-based line/column. */
+    openFile(path: string, at?: RevealTarget): Promise<void>
+  }
+
+  /** Find in files over the open folder. Unsaved editor text is searched too. */
+  findText(
+    query: SearchQuery,
+    onBatch: (files: SearchFileResult[]) => void,
+    signal?: AbortSignal
+  ): Promise<SearchSummary>
+
+  /**
+   * Replaces matches that `findText` reported, with the same query options.
+   * Open files are edited in their editor (left unsaved); others are written.
+   * Matches that changed since the search are skipped and counted.
+   */
+  replaceText(
+    query: SearchQuery,
+    replacement: string,
+    targets: ReplaceTarget[]
+  ): Promise<ReplaceResult>
+
+  /** Managing extensions. Meant for the extension store. */
+  extensions: {
+    list(): ExtensionInfo[]
+    /** Calls the listener whenever any extension changes; returns the unsubscribe. */
+    onDidChange(listener: () => void): Disposable
+    setEnabled(id: string, enabled: boolean): Promise<void>
+    install(id: string): Promise<ExtensionInfo>
+    uninstall(id: string): Promise<void>
+    /** Asks for a folder and runs it as a development extension; null if cancelled. */
+    linkDev(): Promise<ExtensionInfo | null>
+    registry: {
+      url(): Promise<string>
+      /** "" restores the default registry. */
+      setUrl(url: string): Promise<void>
+      fetch(): Promise<RegistryEntry[]>
+    }
   }
 
   ui: {
+    confirm(options: ConfirmOptions): Promise<boolean>
     toast: {
       info(message: string): void
       error(message: string): void

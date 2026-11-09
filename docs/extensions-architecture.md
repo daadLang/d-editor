@@ -250,3 +250,13 @@ daadLang/extensions          the registry
 5. **Updates while running.** Hot-load on install; for updates/uninstall of an active extension, ask for restart in v1.
 6. **Where `index.json` lives.** GitHub Pages on the registry repo is the simplest. It is a single point of failure; ship the last-known index with the app for offline use.
 7. **Browser dev mode.** Every new Go method needs a `wails-mock.ts` entry, or `make dev-frontend` breaks.
+
+### Decisions made while implementing search and the store
+
+- **Manifest is `extension.json`, not TOML** (decision 3 above). The Go side needs no parser dependency and extension authors already know JSON. Fields: `id`, `name`, `version`, `main`, `styles`, `permissions`, `api`.
+- **Updates hot-load** (decision 5 above). Installing over an active extension stops it, replaces its files atomically, and starts the new version with a cache-busting URL. Uninstall stops it first. No restart is needed.
+- **Registry URL is a setting.** `extensions.DefaultRegistryURL` in `internal/extensions/registry.go` is a placeholder (`https://daadlang.github.io/extensions/index.json`); the store's "registry address" field overrides it, and it may be a local folder or `file://` path while the registry is being built. A remote index cannot point at local files; plain http is accepted only for loopback.
+- **The frontend only names the extension to install.** Download URL and sha256 come from the registry index read in Go, so a compromised webview cannot make Go fetch an arbitrary URL.
+- **Install is the trust boundary.** Archives are extracted with no symlinks, hard links, devices, absolute or `..` paths, and with file-count and size limits. Permissions are informational in v1 and are shown in a confirmation dialog.
+- **The store is locked.** It is built in and cannot be disabled; otherwise nothing disabled could be re-enabled.
+- **Disabled state** lives in `~/.daad-ide/extensions.json` and applies to built-in and installed extensions alike.

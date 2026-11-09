@@ -59,6 +59,117 @@ export interface DaadOutputEvent {
   data: string
 }
 
+export interface SearchOptions {
+  /** Chosen by the caller so it can listen before the first event arrives. */
+  id: string
+  root: string
+  query: string
+  caseSensitive: boolean
+  wholeWord: boolean
+  regex: boolean
+  /** Ignore Arabic tashkeel and fold alef/yaa variants. */
+  ignoreDiacritics: boolean
+  /** Comma-separated globs, e.g. "*.daad, src/**". */
+  include: string
+  exclude: string
+  maxResults?: number
+  /** Text of open files with unsaved edits, by path. */
+  unsaved?: Record<string, string>
+}
+
+export interface SearchMatch {
+  line: number
+  /** 1-based, in UTF-16 units (what CodeMirror uses). */
+  column: number
+  length: number
+  preview: string
+  previewStart: number
+}
+
+export interface SearchFileResult {
+  path: string
+  matches: SearchMatch[]
+}
+
+export interface SearchSummary {
+  files: number
+  matches: number
+  truncated: boolean
+  cancelled: boolean
+  durationMs: number
+}
+
+/** A match to replace, as a search reported it. */
+export interface ReplacePosition {
+  line: number
+  column: number
+  length: number
+}
+
+export interface ReplaceTarget {
+  path: string
+  matches: ReplacePosition[]
+}
+
+export interface ReplaceEdit extends ReplacePosition {
+  text: string
+}
+
+export interface FileEdits {
+  path: string
+  edits: ReplaceEdit[]
+  /** The file on disk was changed; otherwise the caller applies `edits` to its buffer. */
+  written: boolean
+  /** Matches that were no longer there and were left alone. */
+  skipped: number
+  error?: string
+}
+
+export interface SearchEvent {
+  id: string
+  files?: SearchFileResult[]
+  done: boolean
+  summary?: SearchSummary
+  error?: string
+}
+
+/** An extension found on disk (see internal/extensions). */
+export interface InstalledExtension {
+  id: string
+  name: string
+  version: string
+  description?: string
+  authors?: string[]
+  repository?: string
+  main: string
+  styles?: string[]
+  permissions?: string[]
+  api: number
+  enabled: boolean
+  source: "installed" | "dev"
+  dir?: string
+  error?: string
+}
+
+export interface ExtensionsState {
+  disabled: string[]
+  dev: Record<string, string>
+  registryUrl: string
+}
+
+/** One extension listed by the registry. */
+export interface RegistryEntry {
+  id: string
+  name: string
+  version: string
+  description?: string
+  authors?: string[]
+  repository?: string
+  permissions?: string[]
+  api: number
+  download: { url: string; sha256: string; size?: number }
+}
+
 export interface Backend {
   ReadDirectory(dirPath: string): Promise<FileEntry[]>
   ReadFile(filePath: string): Promise<string>
@@ -80,10 +191,26 @@ export interface Backend {
   RunDaad(filePath: string, interpreterPath: string): Promise<RunResult>
   WriteDaadStdin(data: string): Promise<boolean>
   EndDaadStdin(): Promise<boolean>
+  StartSearch(options: SearchOptions): Promise<string>
+  CancelSearch(id: string): Promise<void>
+  ReplaceInFiles(
+    options: SearchOptions,
+    replacement: string,
+    targets: ReplaceTarget[]
+  ): Promise<FileEdits[]>
+  ListInstalledExtensions(): Promise<InstalledExtension[]>
+  GetExtensionsState(): Promise<ExtensionsState>
+  SetExtensionEnabled(id: string, enabled: boolean): Promise<void>
+  SetRegistryURL(url: string): Promise<void>
+  FetchExtensionIndex(): Promise<{ schema: number; extensions: RegistryEntry[] }>
+  InstallExtension(id: string): Promise<InstalledExtension>
+  UninstallExtension(id: string): Promise<void>
+  /** Opens a folder dialog; resolves with an empty `id` when it is cancelled. */
+  LinkDevExtension(): Promise<InstalledExtension>
 }
 
 export interface EventsApi {
-  EventsOn(event: string, callback: (data: DaadOutputEvent) => void): () => void
+  EventsOn<T = unknown>(event: string, callback: (data: T) => void): () => void
 }
 
 /** Go package path + type of the bound service (`package main`, `type App`). */
@@ -104,7 +231,7 @@ function createDesktopBackend(): Backend {
 
 const desktopEvents: EventsApi = {
   EventsOn: (event, callback) =>
-    Events.On(event, (e) => callback(e.data as DaadOutputEvent)),
+    Events.On(event, (e) => callback(e.data as never)),
 }
 
 /**
@@ -175,5 +302,26 @@ export const api = {
   endDaadStdin: () => backend().EndDaadStdin(),
   /** Subscribes to streamed interpreter output; returns an unsubscribe fn. */
   onDaadOutput: (callback: (event: DaadOutputEvent) => void) =>
-    events().EventsOn("daad-output", callback),
+    events().EventsOn<DaadOutputEvent>("daad-output", callback),
+
+  startSearch: (options: SearchOptions) => backend().StartSearch(options),
+  cancelSearch: (id: string) => backend().CancelSearch(id),
+  replaceInFiles: (options: SearchOptions, replacement: string, targets: ReplaceTarget[]) =>
+    backend().ReplaceInFiles(options, replacement, targets),
+  /** Streamed results of `startSearch`; returns an unsubscribe fn. */
+  onSearchEvent: (callback: (event: SearchEvent) => void) =>
+    events().EventsOn<SearchEvent>("search-event", callback),
+
+  listInstalledExtensions: () => backend().ListInstalledExtensions(),
+  getExtensionsState: () => backend().GetExtensionsState(),
+  setExtensionEnabled: (id: string, enabled: boolean) =>
+    backend().SetExtensionEnabled(id, enabled),
+  setRegistryUrl: (url: string) => backend().SetRegistryURL(url),
+  fetchExtensionIndex: () => backend().FetchExtensionIndex(),
+  installExtension: (id: string) => backend().InstallExtension(id),
+  uninstallExtension: (id: string) => backend().UninstallExtension(id),
+  linkDevExtension: () => backend().LinkDevExtension(),
 }
+
+/** Where the webview loads an extension's files from (served by Go). */
+export const extensionsBaseUrl = () => (desktop ? "/_ext" : "/mock-ext")

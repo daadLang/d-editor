@@ -4,6 +4,9 @@ import type { Extension, ExtensionContext, ExtensionManifest } from "@/core/api"
 import { executeCommand, registerCommand } from "@/core/commands"
 import { toDisposable, DisposableStore, type Observable } from "@/core/disposable"
 import { registerSidebarView } from "@/core/views"
+import { findText, replaceText } from "@/core/find-text"
+import { createExtensionsApi } from "@/core/extension-manager"
+import { confirm } from "@/core/confirm"
 import { api } from "@/lib/wails"
 import { openFile, useIdeStore } from "@/store/ide"
 
@@ -73,10 +76,16 @@ function createContext(id: string, store: DisposableStore): ExtensionContext {
     },
 
     editor: {
-      openFile: (path) => openFile(path),
+      openFile: (path, at) => openFile(path, undefined, at),
     },
 
+    findText,
+    replaceText,
+
+    extensions: createExtensionsApi(store),
+
     ui: {
+      confirm,
       toast: {
         info: (message) => void toast(message),
         error: (message) => void toast.error(message),
